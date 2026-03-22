@@ -1,9 +1,11 @@
-﻿# auth.py
+# auth.py
 import sqlite3
 import bcrypt
+import os
 from typing import Optional, Tuple, Dict, Any
 
-DB = "app.db"
+# Utilise DB_PATH depuis l'environnement (Railway) ou app.db en local
+DB = os.getenv('DB_PATH', 'app.db')
 
 def _connect():
     conn = sqlite3.connect(DB)
@@ -13,15 +15,12 @@ def _connect():
 def find_user(identifier: str) -> Optional[sqlite3.Row]:
     with _connect() as conn:
         cur = conn.cursor()
-        cur.execute(
-            """
+        cur.execute("""
             SELECT id, email, login, role, created_at, password_hash
             FROM users
             WHERE email = ? COLLATE NOCASE OR login = ? COLLATE NOCASE
             LIMIT 1
-            """,
-            (identifier, identifier),
-        )
+        """, (identifier, identifier))
         return cur.fetchone()
 
 def authenticate(identifier: str, password: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
@@ -34,10 +33,10 @@ def authenticate(identifier: str, password: str) -> Tuple[Optional[Dict[str, Any
     try:
         if bcrypt.checkpw(password.encode(), stored_hash.encode()):
             user = {
-                "id": row["id"],
-                "email": row["email"],
-                "login": row["login"],
-                "role": row["role"],
+                "id":         row["id"],
+                "email":      row["email"],
+                "login":      row["login"],
+                "role":       row["role"],
                 "created_at": row["created_at"],
             }
             return user, None
@@ -71,17 +70,3 @@ def create_user(email: str, login: str, role: str = "user", plain_password: Opti
             return False, f"integrity_error: {e}"
         except Exception as e:
             return False, f"error: {e}"
-
-if __name__ == "__main__":
-    tests = [
-        ("Yoann", "TonMotDePasseSecurise"),
-        ("l.yoann68@hotmail.fr", "TonMotDePasseSecurise"),
-        ("yoann", "TonMotDePasseSecurise"),
-        ("nonexistent", "x"),
-    ]
-    for ident, pw in tests:
-        user, err = authenticate(ident, pw)
-        if user:
-            print("AUTH OK for", ident, "->", user)
-        else:
-            print("AUTH FAIL for", ident, ":", err)
