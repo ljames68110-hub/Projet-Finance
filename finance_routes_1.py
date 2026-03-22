@@ -242,14 +242,7 @@ def api_add_member(wid):
         if not w or w[0] != uid:
             return jsonify({'error': 'forbidden'}), 403
         search = (data.get('identifier') or data.get('email') or '').strip()
-        # Cherche par email, login, name, ou id numérique
-        cur.execute("""
-            SELECT id, COALESCE(name,login,email,'') as uname, email
-            FROM users
-            WHERE email=? OR login=? OR name=?
-               OR CAST(id AS TEXT)=?
-            LIMIT 1
-        """, (search, search, search, search))
+        cur.execute("SELECT id, COALESCE(name,login,email,'') as uname, email FROM users WHERE email=? OR login=? OR name=? LIMIT 1", (search, search, search))
         t = cur.fetchone()
         if not t:
             return jsonify({'error': 'user_not_found'}), 404
@@ -467,11 +460,7 @@ def api_update_transaction(tx_id):
         wid = tx[0]
         cur.execute("SELECT owner_id FROM wallets WHERE id=?", (wid,))
         w = cur.fetchone()
-        is_author = tx[1] == uid
-        is_owner  = w and w[0] == uid
-        cur.execute("SELECT id FROM wallet_members WHERE wallet_id=? AND user_id=?", (wid, uid))
-        is_member = cur.fetchone() is not None
-        if not (is_author or is_owner or is_member):
+        if tx[1] != uid and (not w or w[0] != uid):
             return jsonify({'error': 'forbidden'}), 403
 
         fields, vals = [], []
@@ -509,12 +498,7 @@ def api_delete_transaction(tx_id):
         wid = tx[0]
         cur.execute("SELECT owner_id FROM wallets WHERE id=?", (wid,))
         w = cur.fetchone()
-        # Peut supprimer si : auteur OU propriétaire OU n'importe quel membre du wallet
-        is_author = tx[1] == uid
-        is_owner  = w and w[0] == uid
-        cur.execute("SELECT id FROM wallet_members WHERE wallet_id=? AND user_id=?", (wid, uid))
-        is_member = cur.fetchone() is not None
-        if not (is_author or is_owner or is_member):
+        if tx[1] != uid and (not w or w[0] != uid):
             return jsonify({'error': 'forbidden'}), 403
         cur.execute("DELETE FROM transactions WHERE id=?", (tx_id,))
         conn.commit()
@@ -759,12 +743,11 @@ def admin_delete_user(uid):
 def admin_get_config():
     p = _auth()
     if not _is_admin(p): return jsonify({'error':'forbidden'}), 403
-    import os, config as cfg
-    # Priorité : variables d'environnement (chargées depuis .env) > config.py
+    import config as cfg
     return jsonify({
-        'smtp_host': os.getenv('SMTP_HOST') or getattr(cfg,'SMTP_HOST',''),
-        'smtp_port': int(os.getenv('SMTP_PORT') or getattr(cfg,'SMTP_PORT',587)),
-        'smtp_user': os.getenv('SMTP_USER') or getattr(cfg,'SMTP_USER',''),
+        'smtp_host': getattr(cfg,'SMTP_HOST',''),
+        'smtp_port': getattr(cfg,'SMTP_PORT',587),
+        'smtp_user': getattr(cfg,'SMTP_USER',''),
     })
 
 @finance_bp.route('/api/admin/config', methods=['PUT'])
@@ -789,50 +772,13 @@ def admin_save_config():
 def admin_test_smtp():
     p = _auth()
     if not _is_admin(p): return jsonify({'error':'forbidden'}), 403
-    import smtplib, os, config as cfg
-    from email.message import EmailMessage
-
-    host = os.getenv('SMTP_HOST') or getattr(cfg,'SMTP_HOST','')
-    port = int(os.getenv('SMTP_PORT') or getattr(cfg,'SMTP_PORT',587))
-    user = os.getenv('SMTP_USER') or getattr(cfg,'SMTP_USER','')
-    pw   = os.getenv('SMTP_PASS') or getattr(cfg,'SMTP_PASS','')
-    use_tls = os.getenv('SMTP_USE_TLS','').lower() in ('1','true','yes')
-
-    if not host or not user:
-        return jsonify({'ok': False, 'error': 'SMTP non configuré — vérifiez hôte et utilisateur'}), 200
-
-    # Essai 1 : STARTTLS port 587
-    errors = []
-    for try_port, try_ssl in [(port, False), (465, True), (587, False), (25, False)]:
-        try:
-            if try_ssl or try_port == 465:
-                with smtplib.SMTP_SSL(host, try_port, timeout=8) as s:
-                    if pw: s.login(user, pw)
-                    msg = EmailMessage()
-                    msg['Subject'] = 'FinanceApp — Test SMTP ✓'
-                    msg['From']    = user
-                    msg['To']      = user
-                    msg.set_content('Test de connexion SMTP depuis FinanceApp. Tout fonctionne !')
-                    s.send_message(msg)
-            else:
-                with smtplib.SMTP(host, try_port, timeout=8) as s:
-                    s.ehlo()
-                    s.starttls()
-                    s.ehlo()
-                    if pw: s.login(user, pw)
-                    msg = EmailMessage()
-                    msg['Subject'] = 'FinanceApp — Test SMTP ✓'
-                    msg['From']    = user
-                    msg['To']      = user
-                    msg.set_content('Test de connexion SMTP depuis FinanceApp. Tout fonctionne !')
-                    s.send_message(msg)
-            return jsonify({'ok': True, 'port_used': try_port,
-                           'message': f'Email envoyé sur {user} via port {try_port}'})
-        except Exception as e:
-            errors.append(f'Port {try_port}: {str(e)}')
-            continue
-
-    return jsonify({'ok': False, 'error': ' | '.join(errors)}), 200
+    import smtplib, config as cfg
+    try:
+        with smtplib.SMTP(cfg.SMTP_HOST, cfg.SMTP_PORT, timeout=5) as s:
+            s.noop()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 200
 
 @finance_bp.route('/api/admin/db/stats', methods=['GET'])
 def admin_db_stats():
@@ -946,27 +892,5 @@ def api_delete_category(cat_id):
         cur.execute("DELETE FROM categories WHERE id=?", (cat_id,))
         conn.commit()
         return jsonify({'ok': True})
-    finally:
-        cur.close(); conn.close()
-
-@finance_bp.route('/api/admin/users/<int:uid>/info', methods=['PUT'])
-def admin_update_user_info(uid):
-    p = _auth()
-    if not _is_admin(p): return jsonify({'error':'forbidden'}), 403
-    data = request.get_json() or {}
-    conn = get_conn(); cur = conn.cursor()
-    try:
-        fields, vals = [], []
-        for f in ('login', 'email', 'display_name', 'name'):
-            if f in data and data[f]:
-                fields.append(f"{f}=?")
-                vals.append(data[f].strip())
-        if not fields: return jsonify({'error': 'nothing_to_update'}), 400
-        vals.append(uid)
-        cur.execute(f"UPDATE users SET {', '.join(fields)} WHERE id=?", vals)
-        conn.commit()
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
     finally:
         cur.close(); conn.close()

@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="FinanceApp">
 <link rel="manifest" href="/static/manifest.json">
 <title>FinanceApp</title>
+<meta name="app-version" content="v4">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
@@ -271,7 +272,7 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
 .mb-item{position:relative}
 .mb-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;font-size:13px;font-weight:500;color:var(--muted);background:none;transition:all .15s;height:28px}
 .mb-btn:hover,.mb-btn.open{background:var(--primary);color:#fff}
-.mb-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;min-width:200px;padding:6px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none}
+.mb-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;min-width:200px;padding:6px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .mb-dropdown.open{display:block;animation:fadeIn .15s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 .mb-sep{height:1px;background:var(--border);margin:4px 0}
@@ -299,6 +300,36 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
 .cat-item .ci-del{color:var(--muted);font-size:13px;padding:2px 4px;border-radius:4px;opacity:0;transition:opacity .2s}
 .cat-item:hover .ci-del{opacity:1}
 .cat-item .ci-del:hover{color:var(--expense);background:rgba(239,68,68,.1)}
+
+/* ── BUDGET PROGRESS ─────────────────────────────────────────────────── */
+.budget-bar-wrap{height:8px;background:var(--bg3);border-radius:100px;overflow:hidden;margin-top:6px}
+.budget-bar{height:100%;border-radius:100px;transition:width .6s ease}
+
+/* ── MOBILE AMÉLIORÉ ─────────────────────────────────────────────────── */
+@media (max-width:768px){
+  .card-grid{grid-template-columns:1fr!important}
+  #content{padding:12px;padding-bottom:100px}
+  .page-title{font-size:18px;margin-bottom:14px}
+  .stat-value{font-size:20px}
+  .balance-amount{font-size:24px}
+  .balance-sub{flex-wrap:wrap;gap:12px}
+  .filter-bar{gap:6px}
+  .filter-input,.filter-select{font-size:12px;padding:7px 10px}
+  .modal{padding:16px;border-radius:var(--radius) var(--radius) 0 0}
+  #modal-search .modal{border-radius:0;margin:0;max-height:100vh;height:100vh}
+  table{display:block;overflow-x:auto}
+  /* Profile grid mobile */
+  #content>[style*="grid-template-columns:1fr 1fr"]{display:flex!important;flex-direction:column!important}
+  /* Menubar scroll mobile */
+  #menubar{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+  #menubar .mb-btn{white-space:nowrap;font-size:12px;padding:4px 8px}
+}
+@media (max-width:480px){
+  .balance-amount{font-size:20px}
+  .btn-fab{width:48px;height:48px;font-size:20px}
+  #wallet-bar{gap:8px;padding:8px 12px}
+  .wallet-pill{padding:6px 10px;font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -346,6 +377,15 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
       <div class="nav-item" onclick="nav('wallets')" id="nav-wallets">
         <span class="nav-icon">👛</span> Portefeuilles
       </div>
+      <div class="nav-item" id="nav-debts" onclick="nav('debts')">
+        <span class="nav-icon">💸</span> Dettes
+      </div>
+      <div class="nav-item" id="nav-budgets" onclick="nav('budgets')">
+        <span class="nav-icon">📅</span> Budgets
+      </div>
+      <div class="nav-item" id="nav-fixed" onclick="nav('fixed')">
+        <span class="nav-icon">🔁</span> Dépenses fixes
+      </div>
       <div class="nav-item" id="nav-admin" style="display:none" onclick="nav('admin')">
         <span class="nav-icon">⚙️</span> Administration
       </div>
@@ -374,6 +414,8 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
           <button class="mb-action" onclick="closeMenus();nav('transactions')"><span class="ma-icon">📋</span> Voir toutes les transactions</button>
           <div class="mb-sep"></div>
           <button class="mb-action" onclick="closeMenus();exportCSV()"><span class="ma-icon">⬇</span> Exporter en CSV</button>
+          <div class="mb-sep"></div>
+          <button class="mb-action" onclick="closeMenus();nav('fixed')"><span class="ma-icon">🔁</span> Dépenses fixes</button>
         </div>
       </div>
       <!-- Portefeuilles -->
@@ -384,6 +426,8 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
           <button class="mb-action" onclick="closeMenus();nav('wallets')"><span class="ma-icon">👛</span> Gérer mes portefeuilles</button>
           <div class="mb-sep"></div>
           <button class="mb-action" onclick="closeMenus();openManageMembers()"><span class="ma-icon">👥</span> Partager le portefeuille actuel</button>
+          <div class="mb-sep"></div>
+          <button class="mb-action" onclick="closeMenus();openCreateJointWallet()"><span class="ma-icon">👫</span> Créer un compte joint</button>
         </div>
       </div>
       <!-- Catégories -->
@@ -413,6 +457,9 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
       </div>
       <div class="mb-spacer"></div>
       <!-- Live indicator -->
+      <button class="mb-btn" onclick="openSearch()" title="Recherche globale">🔍</button>
+      <button class="mb-btn" onclick="openNotifs()" style="position:relative">🔔 <span id="notif-count" style="display:none;background:var(--expense);color:#fff;border-radius:100px;padding:1px 6px;font-size:10px;font-weight:700"></span></button>
+      <button class="mb-btn" onclick="nav('profile')">👤 Profil</button>
       <div class="mb-live" id="mb-live"></div>
     </div>
     <!-- Topbar mobile -->
@@ -420,6 +467,9 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
       <div class="topbar-title" id="topbar-title">Tableau de bord</div>
       <div class="topbar-actions">
         <span id="live-ind"></span>
+        <button style="background:none;color:var(--muted);font-size:18px;position:relative" onclick="openSearch()" title="Recherche">🔍</button>
+        <button style="background:none;color:var(--muted);font-size:18px;position:relative" onclick="openNotifs()" title="Notifications" id="notif-btn">🔔<span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--expense);color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700"></span></button>
+        <button style="background:none;color:var(--muted);font-size:18px" onclick="nav('profile')" title="Profil">👤</button>
         <button style="background:none;color:var(--muted);font-size:18px" onclick="logout()">⏻</button>
       </div>
     </div>
@@ -447,6 +497,15 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
     </div>
     <div class="bnav-item" onclick="nav('wallets')" id="bnav-wallets">
       <span class="bi">👛</span><span>Comptes</span>
+    </div>
+    <div class="bnav-item" id="bnav-debts" onclick="nav('debts')">
+      <span class="bi">💸</span><span>Dettes</span>
+    </div>
+    <div class="bnav-item" id="bnav-budgets" onclick="nav('budgets')">
+      <span class="bi">📅</span><span>Budgets</span>
+    </div>
+    <div class="bnav-item" id="bnav-fixed" onclick="nav('fixed')">
+      <span class="bi">🔁</span><span>Fixes</span>
     </div>
     <div class="bnav-item" id="bnav-admin" style="display:none" onclick="nav('admin')">
       <span class="bi">⚙️</span><span>Admin</span>
@@ -518,12 +577,26 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
       <input id="wlt-iban" class="form-input" type="text" placeholder="FR76 3000 6000 0112 3456 7890 189" maxlength="34" oninput="formatIban(this)">
     </div>
     <div class="form-row">
+      <label class="form-label">Type de compte</label>
+      <select id="wlt-type" class="form-select" onchange="onWalletTypeChange()">
+        <option value="personal">💳 Compte courant</option>
+        <option value="savings">🏦 Livret épargne (A, LDDS...)</option>
+        <option value="crypto">₿ Compte crypto</option>
+        <option value="investment">📈 Compte investissement / PEA</option>
+        <option value="cash">💵 Espèces / Cash</option>
+        <option value="joint">👫 Compte joint</option>
+      </select>
+    </div>
+    <div class="form-row">
       <label class="form-label">Devise</label>
       <select id="wlt-currency" class="form-select">
         <option value="EUR">€ Euro</option>
         <option value="USD">$ Dollar</option>
         <option value="GBP">£ Livre sterling</option>
         <option value="CHF">₣ Franc suisse</option>
+        <option value="BTC">₿ Bitcoin</option>
+        <option value="ETH">Ξ Ethereum</option>
+        <option value="USDT">₮ USDT</option>
       </select>
     </div>
     <div class="form-row">
@@ -539,6 +612,10 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
         <span data-color="#22c55e">🟢</span><span data-color="#ef4444">🔴</span>
         <span data-color="#f97316">🟠</span><span data-color="#eab308">🟡</span>
       </div>
+    </div>
+    <div id="wlt-joint-partner-row" style="display:none" class="form-row">
+      <label class="form-label">Email ou login du partenaire</label>
+      <input id="wlt-joint-partner" class="form-input" type="text" placeholder="Email de votre partenaire" autocomplete="off">
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-wallet')">Annuler</button>
@@ -628,6 +705,245 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
     <div class="cat-grid" id="manage-cats-list"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="closeModal('modal-manage-cats');openCreateCategory()">＋ Ajouter une catégorie</button>
   </div>
+</div>
+
+<!-- Modal Recherche Globale -->
+<div class="modal-overlay" id="modal-search">
+  <div class="modal" style="max-width:600px;border-radius:var(--radius);margin:40px auto;max-height:80vh">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:20px">🔍</span>
+      <input id="search-input" class="form-input" style="flex:1;font-size:16px" type="search" placeholder="Rechercher transactions, portefeuilles, dettes..." autocomplete="off">
+      <button class="modal-close" onclick="closeModal('modal-search')">✕</button>
+    </div>
+    <div id="search-results" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- Modal Notifications -->
+<div class="modal-overlay" id="modal-notifs">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">
+      <span>🔔 Notifications</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="markAllRead()">Tout lire</button>
+        <button class="modal-close" onclick="closeModal('modal-notifs')">✕</button>
+      </div>
+    </div>
+    <div id="notifs-list" style="max-height:70vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- Modal Nouvelle Dette -->
+<div class="modal-overlay" id="modal-debt">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-debt-title">Nouvelle dette</span>
+      <button class="modal-close" onclick="closeModal('modal-debt')">✕</button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Qui doit rembourser ?</label>
+      <input id="debt-debtor" class="form-input" type="text" placeholder="Nom de la personne ou email" autocomplete="off">
+      <div id="debt-user-results" style="margin-top:4px"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Montant (€)</label>
+      <input id="debt-amount" class="form-input" type="number" step="0.01" min="0.01" placeholder="0.00">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <input id="debt-desc" class="form-input" type="text" placeholder="Ex: Restaurant, Voyage...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date d'échéance (optionnel)</label>
+      <input id="debt-due" class="form-input" type="date">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-debt')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveDebt()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nouveau Budget -->
+<div class="modal-overlay" id="modal-budget">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-budget-title">Nouveau budget</span>
+      <button class="modal-close" onclick="closeModal('modal-budget')">✕</button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nom du budget</label>
+      <input id="budget-name" class="form-input" type="text" placeholder="Ex: Alimentation, Loisirs...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Montant maximum (€)</label>
+      <input id="budget-amount" class="form-input" type="number" step="0.01" min="0.01" placeholder="500.00">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Catégorie (optionnel)</label>
+      <select id="budget-cat" class="form-select">
+        <option value="">— Toutes dépenses —</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Mois</label>
+      <input id="budget-month" class="form-input" type="month">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Alerte à (% du budget)</label>
+      <input id="budget-alert" class="form-input" type="number" min="1" max="100" value="80">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-budget')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveBudget()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Compte Joint -->
+<div class="modal-overlay" id="modal-joint">
+  <div class="modal">
+    <div class="modal-title">
+      <span>👫 Créer un compte joint</span>
+      <button class="modal-close" onclick="closeModal('modal-joint')">✕</button>
+    </div>
+    <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--income)">
+      💡 Un compte joint est un portefeuille partagé où vous et votre partenaire pouvez tous les deux ajouter et voir les transactions en temps réel.
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nom du compte</label>
+      <input id="joint-name" class="form-input" type="text" value="Compte Joint" placeholder="Ex: Compte Familial, Maison...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Email ou login de votre partenaire</label>
+      <input id="joint-partner" class="form-input" type="text" placeholder="Email ou login" autocomplete="off">
+      <div id="joint-partner-results" style="margin-top:4px"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <input id="joint-desc" class="form-input" type="text" placeholder="Dépenses communes, loyer..." autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Devise</label>
+      <select id="joint-currency" class="form-select">
+        <option value="EUR">€ Euro</option>
+        <option value="USD">$ Dollar</option>
+        <option value="GBP">£ Livre</option>
+        <option value="CHF">₣ Franc suisse</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">IBAN / RIB <span style="color:var(--muted);font-weight:400">(optionnel)</span></label>
+      <input id="joint-iban" class="form-input" type="text" placeholder="FR76 3000 6000 0112 3456 7890 189" maxlength="34" oninput="formatIban(this)" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-joint')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveJointWallet()">👫 Créer le compte joint</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Dépense Fixe -->
+<div class="modal-overlay" id="modal-fixed">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-fixed-title">Nouvelle dépense fixe</span>
+      <button class="modal-close" onclick="closeModal('modal-fixed')">✕</button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Portefeuille</label>
+      <select id="fixed-wallet" class="form-select"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Libellé</label>
+      <input id="fixed-label" class="form-input" type="text" placeholder="Ex: Loyer, EDF, Abonnement...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Montant (€)</label>
+      <input id="fixed-amount" class="form-input" type="number" step="0.01" min="0.01" placeholder="0.00">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Catégorie</label>
+      <select id="fixed-cat" class="form-select"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Fréquence</label>
+      <select id="fixed-freq" class="form-select">
+        <option value="weekly">Hebdomadaire</option>
+        <option value="biweekly">Bi-hebdomadaire</option>
+        <option value="monthly" selected>Mensuelle</option>
+        <option value="quarterly">Trimestrielle</option>
+        <option value="yearly">Annuelle</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Prochaine échéance</label>
+      <input id="fixed-next" class="form-input" type="date">
+    </div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+        <input type="checkbox" id="fixed-auto" style="width:18px;height:18px">
+        <span style="font-size:13px;font-weight:500">Insertion automatique à l'échéance</span>
+      </label>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Note</label>
+      <input id="fixed-note" class="form-input" type="text" placeholder="Optionnel" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-fixed')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveFixed()" id="btn-save-fixed">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Admin Edit User -->
+<div class="modal-overlay" id="modal-admin-user">
+  <div class="modal">
+    <div class="modal-title">
+      <span>✏️ Modifier l'utilisateur</span>
+      <button class="modal-close" onclick="closeModal('modal-admin-user')">✕</button>
+    </div>
+    <div id="admin-user-id-hidden"></div>
+    <div class="form-row">
+      <label class="form-label">Login</label>
+      <input id="auser-login" class="form-input" type="text" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nom affiché</label>
+      <input id="auser-name" class="form-input" type="text" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Email</label>
+      <input id="auser-email" class="form-input" type="email" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Rôle</label>
+      <select id="auser-role" class="form-select">
+        <option value="user">Utilisateur</option>
+        <option value="admin">Administrateur</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nouveau mot de passe <span style="color:var(--muted);font-weight:400">(laisser vide = inchangé)</span></label>
+      <input id="auser-pw" class="form-input" type="password" autocomplete="new-password" placeholder="Laisser vide pour ne pas changer">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-admin-user')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveAdminUser()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- PWA Install Banner -->
+<div id="pwa-banner" style="display:none">
+  <span style="font-size:24px">📱</span>
+  <div class="pwa-text">
+    Installer FinanceApp
+    <small>Accès rapide depuis l'écran d'accueil</small>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="installPWA()">Installer</button>
+  <button style="background:none;color:var(--muted);padding:4px" onclick="dismissPWA()">✕</button>
 </div>
 
 <!-- Toast container -->
@@ -739,6 +1055,7 @@ async function bootApp() {
   await loadWallets();
   connectSSE();
   loadTheme();
+  loadNotifications();
   nav('dashboard');
 }
 
@@ -841,12 +1158,12 @@ async function loadCategories() {
 // ═══════════════════════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════════════════
-const pageNames = { dashboard:'Tableau de bord', transactions:'Transactions', stats:'Statistiques', wallets:'Portefeuilles', admin:'Administration' };
+const pageNames = { dashboard:'Tableau de bord', transactions:'Transactions', stats:'Statistiques', wallets:'Portefeuilles', debts:'Dettes & Remboursements', budgets:'Budgets mensuels', fixed:'Dépenses fixes', profile:'Mon profil', admin:'Administration' };
 async function nav(page) {
   S.currentPage = page;
   document.getElementById('topbar-title').textContent = pageNames[page];
   // Active states
-  ['dashboard','transactions','stats','wallets'].forEach(p => {
+  ['dashboard','transactions','stats','wallets','debts','budgets','fixed'].forEach(p => {
     document.getElementById('nav-' + p).classList.toggle('active', p === page);
     document.getElementById('bnav-' + p).classList.toggle('active', p === page);
   });
@@ -859,6 +1176,11 @@ async function nav(page) {
   if ((page === 'dashboard' || page === 'transactions') && S.currentWallet) {
     await loadTransactions(true);
   }
+  if (page === 'dashboard') { await loadFixed(); }
+  if (page === 'debts'  && S.currentWallet) { await loadDebts(); }
+  if (page === 'fixed'  && S.currentWallet) { await loadFixed(); }
+  if (page === 'budgets' && S.currentWallet) { await loadBudgets(); }
+  if (page === 'profile') { await loadProfile(); }
   refreshCurrentPage();
 }
 
@@ -868,7 +1190,11 @@ function refreshCurrentPage() {
   else if (page === 'transactions') renderTransactions();
   else if (page === 'stats') renderStats();
   else if (page === 'wallets') renderWalletsPage();
-  else if (page === 'admin') renderAdmin();
+  else if (page === 'debts')   renderDebts();
+  else if (page === 'fixed')   renderFixed();
+  else if (page === 'budgets') renderBudgets();
+  else if (page === 'profile') renderProfile();
+  else if (page === 'admin')   renderAdmin();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -882,13 +1208,62 @@ function renderDashboard() {
     return;
   }
   const txRecent = S.transactions.slice(0, 8);
-  const income = S.transactions.filter(t => t.type==='income').reduce((a,t) => a+t.amount, 0);
+  const income  = S.transactions.filter(t => t.type==='income').reduce((a,t)  => a+t.amount, 0);
   const expense = S.transactions.filter(t => t.type==='expense').reduce((a,t) => a+t.amount, 0);
+
+  // ── Dépenses fixes stats ────────────────────────────────────────────────
+  const today     = new Date();
+  const todayStr  = today.toISOString().split('T')[0];
+  const in3days   = new Date(today); in3days.setDate(today.getDate() + 3);
+  const in3Str    = in3days.toISOString().split('T')[0];
+
+  const allFixed  = S.fixedExpenses || [];
+  const activeFixed = allFixed.filter(f => f.active);
+
+  // Total mensuel estimé de toutes les dépenses fixes actives
+  const multMap   = { weekly:4.33, biweekly:2.17, monthly:1, quarterly:0.33, yearly:0.083 };
+  const totalMonthlyFixed = activeFixed.reduce((a,f) => a + f.amount*(multMap[f.frequency]||1), 0);
+
+  // Dépenses en retard (date dépassée)
+  const overdueFixed = activeFixed.filter(f => f.next_date < todayStr);
+  const totalOverdue = overdueFixed.reduce((a,f) => a+f.amount, 0);
+
+  // Dépenses à venir dans 3 jours
+  const soonFixed = activeFixed.filter(f => f.next_date >= todayStr && f.next_date <= in3Str);
+  const totalSoon = soonFixed.reduce((a,f) => a+f.amount, 0);
+
+  // Total restant à payer ce mois = overdue + à venir 3j
+  const totalToPay = totalOverdue + totalSoon;
+
+  const fixedSoonRows = [...overdueFixed, ...soonFixed]
+    .sort((a,b) => (a.next_date||'').localeCompare(b.next_date||''))
+    .slice(0, 5)
+    .map(f => {
+      const isOverdue = f.next_date < todayStr;
+      const daysText  = isOverdue
+        ? `<span style="color:var(--expense);font-size:11px;font-weight:700">🚨 ${Math.abs(f.days_left)}j retard</span>`
+        : f.days_left === 0
+          ? `<span style="color:#f97316;font-size:11px;font-weight:700">⚠️ Aujourd'hui</span>`
+          : `<span style="color:#f97316;font-size:11px">⏰ Dans ${f.days_left}j</span>`;
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:18px">${f.cat_icon||'📦'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.label)}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:2px">${daysText}
+              ${f.wallet_name?`<span style="font-size:10px;color:var(--muted)">${f.wallet_icon||''} ${esc(f.wallet_name)}</span>`:''}
+            </div>
+          </div>
+          <div style="font-size:14px;font-weight:800;color:var(--expense);white-space:nowrap">${fmtAmount(f.amount)}</div>
+          <button class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px" onclick="payFixed(${f.id})">✓</button>
+        </div>`;
+    }).join('');
 
   c.innerHTML = `
     <div class="page-title">🏠 Tableau de bord
-      <span class="live-badge" style="font-size:11px" id="live-badge-db"><span class="live-dot"></span>En direct</span>
+      <span class="live-badge" style="font-size:11px"><span class="live-dot"></span>En direct</span>
     </div>
+
     <!-- Balance card -->
     <div class="balance-card" style="margin-bottom:20px">
       <div class="balance-title">Solde total — ${w.name}</div>
@@ -899,18 +1274,58 @@ function renderDashboard() {
         <div class="balance-sub-item">📋 <span>${S.total} transactions</span></div>
       </div>
     </div>
-    <!-- Quick stats -->
-    <div class="card-grid">
-      <div class="stat-card"><div class="stat-label">Ce mois</div><div class="stat-value income">+${fmtAmount(income, w.currency)}</div><div class="stat-sub">Revenus enregistrés</div></div>
-      <div class="stat-card"><div class="stat-label">Ce mois</div><div class="stat-value expense">-${fmtAmount(expense, w.currency)}</div><div class="stat-sub">Dépenses enregistrées</div></div>
+
+    <!-- Stats row -->
+    <div class="card-grid" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">Revenus ce mois</div>
+        <div class="stat-value income">+${fmtAmount(income, w.currency)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dépenses ce mois</div>
+        <div class="stat-value expense">-${fmtAmount(expense, w.currency)}</div>
+      </div>
+      <div class="stat-card" style="cursor:pointer" onclick="nav('fixed')">
+        <div class="stat-label">Charges fixes / mois</div>
+        <div class="stat-value expense">${fmtAmount(totalMonthlyFixed)}</div>
+        <div class="stat-sub">${activeFixed.length} dépense${activeFixed.length>1?'s':''} active${activeFixed.length>1?'s':''}</div>
+      </div>
+      <div class="stat-card" style="cursor:pointer;${totalToPay>0?'border-color:var(--expense)':''}" onclick="nav('fixed')">
+        <div class="stat-label">À payer maintenant</div>
+        <div class="stat-value" style="color:${totalToPay>0?'var(--expense)':'var(--income)'}">
+          ${totalToPay>0?fmtAmount(totalToPay):'✅ À jour'}
+        </div>
+        <div class="stat-sub">
+          ${overdueFixed.length>0?`<span style="color:var(--expense)">${overdueFixed.length} en retard</span>`:''}
+          ${soonFixed.length>0?` · ${soonFixed.length} dans 3 jours`:''}
+          ${totalToPay===0?'Aucune échéance imminente':''}
+        </div>
+      </div>
     </div>
-    <!-- Recent transactions -->
+
+    <!-- Dépenses fixes imminentes -->
+    ${(overdueFixed.length > 0 || soonFixed.length > 0) ? `
+    <div class="card" style="margin-bottom:20px;${overdueFixed.length>0?'border-color:rgba(239,68,68,.4)':'border-color:rgba(249,115,22,.4)'}">
+      <div class="section-header">
+        <div class="section-title">
+          ${overdueFixed.length>0?'🚨':'⏰'}
+          ${overdueFixed.length>0?'Dépenses en retard / imminentes':'Échéances dans 3 jours'}
+        </div>
+        <div class="section-action" onclick="nav('fixed')">Toutes →</div>
+      </div>
+      ${fixedSoonRows}
+      ${(overdueFixed.length + soonFixed.length) > 5
+        ? `<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">${overdueFixed.length+soonFixed.length-5} autres échéances...</div>`
+        : ''}
+    </div>` : ''}
+
+    <!-- Transactions récentes -->
     <div class="card">
       <div class="section-header">
         <div class="section-title">Transactions récentes</div>
         <div class="section-action" onclick="nav('transactions')">Voir tout →</div>
       </div>
-      <div class="tx-list" id="tx-recent">
+      <div class="tx-list">
         ${txRecent.length === 0
           ? `<div class="empty" style="padding:30px"><div class="empty-icon">📭</div><h3>Aucune transaction</h3><p>Ajoutez votre première transaction !</p></div>`
           : txRecent.map(txRow).join('')
@@ -1132,7 +1547,7 @@ function walletCard(w) {
       <div class="wallet-card-top">
         <div class="wallet-card-icon" style="background:${w.color}22;color:${w.color}">${w.icon}</div>
         <div style="display:flex;gap:6px;align-items:center">
-          ${w.is_shared ? '<span class="badge badge-shared">👥 Partagé</span>' : ''}
+          ${w.wallet_type==='joint' ? '<span class="badge" style="background:rgba(34,197,94,.15);color:var(--income)">👫 Joint</span>' : w.wallet_type==='savings' ? '<span class="badge" style="background:rgba(34,197,94,.1);color:var(--income)">🏦 Livret</span>' : w.wallet_type==='crypto' ? '<span class="badge" style="background:rgba(249,115,22,.1);color:#f97316">₿ Crypto</span>' : w.wallet_type==='investment' ? '<span class="badge" style="background:rgba(59,130,246,.1);color:#3b82f6">📈 Invest</span>' : w.wallet_type==='cash' ? '<span class="badge" style="background:rgba(234,179,8,.1);color:#eab308">💵 Cash</span>' : w.is_shared ? '<span class="badge badge-shared">👥 Partagé</span>' : ''}
           ${w.is_mine ? `<button class="btn btn-secondary btn-sm" onclick="openMembers(${w.id},event)" title="Partager">👥</button>` : ''}
           ${w.is_mine ? `<button class="btn btn-danger btn-sm" onclick="deleteWallet(${w.id},event)" title="Supprimer">🗑</button>` : ''}
         </div>
@@ -1220,10 +1635,41 @@ async function saveTx() {
 // ═══════════════════════════════════════════════════════════════════════════
 // MODAL — Create Wallet
 // ═══════════════════════════════════════════════════════════════════════════
+function onWalletTypeChange() {
+  const type = document.getElementById('wlt-type')?.value;
+  const icons = {
+    personal:'💳', savings:'🏦', crypto:'₿', investment:'📈', cash:'💵', joint:'👫'
+  };
+  const colors = {
+    personal:'#6366f1', savings:'#22c55e', crypto:'#f97316',
+    investment:'#3b82f6', cash:'#eab308', joint:'#ec4899'
+  };
+  const names = {
+    personal:'Compte courant', savings:'Livret épargne', crypto:'Portefeuille crypto',
+    investment:'PEA / Investissement', cash:'Espèces', joint:'Compte Joint'
+  };
+  if (type) {
+    S.wltIcon  = icons[type]  || '💳';
+    S.wltColor = colors[type] || '#6366f1';
+    if (!document.getElementById('wlt-name').value || Object.values(names).includes(document.getElementById('wlt-name').value)) {
+      document.getElementById('wlt-name').value = names[type] || '';
+    }
+    // Show partner field only for joint
+    document.getElementById('wlt-joint-partner-row').style.display = type === 'joint' ? 'block' : 'none';
+    // Update icon/color pickers visual
+    document.getElementById('icon-picker').querySelectorAll('span').forEach(s => {
+      s.style.borderColor = s.textContent === S.wltIcon ? 'var(--primary)' : 'transparent';
+    });
+  }
+}
+
 function openCreateWallet() {
   document.getElementById('wlt-name').value = '';
   document.getElementById('wlt-desc').value = '';
   document.getElementById('wlt-iban').value = '';
+  document.getElementById('wlt-type').value = 'personal';
+  document.getElementById('wlt-joint-partner-row').style.display = 'none';
+  if (document.getElementById('wlt-joint-partner')) document.getElementById('wlt-joint-partner').value = '';
   S.wltIcon = '💳'; S.wltColor = '#6366f1';
   // Icon picker
   document.getElementById('icon-picker').querySelectorAll('span').forEach(s => {
@@ -1255,15 +1701,43 @@ async function saveWallet() {
   if (iban && !/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(iban)) {
     toast('error', 'Format IBAN invalide'); return;
   }
+  const walletType = document.getElementById('wlt-type')?.value || 'personal';
   const btn = event?.target;
   if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
+
+  // Si compte joint → utiliser la route dédiée
+  if (walletType === 'joint') {
+    const partner = document.getElementById('wlt-joint-partner')?.value.trim();
+    if (!partner) { toast('error', 'Partenaire requis pour un compte joint'); if(btn){btn.disabled=false;btn.textContent='Créer';} return; }
+    const r = await api('POST', '/api/wallets/joint', {
+      name, partner,
+      description: document.getElementById('wlt-desc').value.trim(),
+      currency: document.getElementById('wlt-currency').value,
+      iban,
+    });
+    if (btn) { btn.disabled = false; btn.textContent = 'Créer'; }
+    if (r?.id) {
+      closeModal('modal-wallet');
+      await loadWallets();
+      const w = S.wallets.find(x => x.id === r.id);
+      if (w) { S.currentWallet = w; renderWalletBar(); }
+      refreshCurrentPage();
+      toast('success', `👫 Compte joint « ${name} » créé ✓`);
+    } else {
+      const msg = r?.error === 'partner_not_found' ? 'Partenaire introuvable' : (r?.error || 'Erreur');
+      toast('error', msg);
+    }
+    return;
+  }
+
   const r = await api('POST', '/api/wallets', {
     name,
     description: document.getElementById('wlt-desc').value.trim(),
     currency: document.getElementById('wlt-currency').value,
     icon: S.wltIcon,
     color: S.wltColor,
-    iban
+    iban,
+    wallet_type: walletType,
   });
   if (btn) { btn.disabled = false; btn.textContent = 'Créer'; }
   if (r && r.id) {
@@ -1272,9 +1746,10 @@ async function saveWallet() {
     const w = S.wallets.find(x => x.id === r.id);
     if (w) { S.currentWallet = w; renderWalletBar(); }
     refreshCurrentPage();
-    toast('success', `Portefeuille « ${name} » créé ✓`);
+    const typeLabels = {personal:'Compte', savings:'Livret', crypto:'Wallet crypto', investment:'Compte investissement', cash:'Compte espèces'};
+    toast('success', `${typeLabels[walletType]||'Portefeuille'} « ${name} » créé ✓`);
   } else {
-    toast('error', 'Erreur : ' + (r?.error || 'impossible de créer le portefeuille'));
+    toast('error', 'Erreur : ' + (r?.error || 'impossible de créer'));
   }
 }
 
@@ -1327,7 +1802,7 @@ async function searchMemberUsers(q) {
     <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg3);border-radius:8px;margin-bottom:6px">
       <div class="member-avatar">${u.name[0].toUpperCase()}</div>
       <div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(u.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(u.email)}</div></div>
-      <button class="btn btn-primary btn-sm" onclick="addMemberById(${u.id})">Inviter</button>
+      <button class="btn btn-primary btn-sm" onclick="addMemberById(${u.id},'${u.email}')">Inviter</button>
     </div>
   `).join('');
 }
@@ -1346,9 +1821,18 @@ async function addMember() {
     toast('error', r?.error === 'user_not_found' ? 'Utilisateur introuvable' : 'Erreur');
   }
 }
-async function addMemberById(uid) {
-  const r = await api('POST', `/api/wallets/${S.membersWalletId}/members`, { identifier: String(uid) });
-  if (r?.ok) { await refreshMembers(); await loadWallets(); toast('success', 'Membre ajouté ✓'); }
+async function addMemberById(uid, email) {
+  // Utilise l'email directement — plus fiable que l'id
+  const r = await api('POST', `/api/wallets/${S.membersWalletId}/members`, { identifier: email });
+  if (r?.ok) {
+    document.getElementById('member-search').value = '';
+    document.getElementById('member-results').innerHTML = '';
+    await refreshMembers();
+    await loadWallets();
+    toast('success', 'Membre ajouté ✓');
+  } else {
+    toast('error', r?.error || 'Erreur ajout membre');
+  }
 }
 async function removeMember(uid) {
   if (!confirm('Retirer ce membre ?')) return;
@@ -1503,7 +1987,8 @@ async function renderAdminUsers() {
               </td>
               <td style="padding:12px 16px;font-size:12px;color:var(--muted)">${u.created_at ? u.created_at.split('T')[0] : '—'}</td>
               <td style="padding:12px 16px;text-align:center">
-                <div style="display:flex;gap:6px;justify-content:center">
+                <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+                  <button class="btn btn-secondary btn-sm" onclick="adminEditUser(${JSON.stringify(u).replace(/"/g,'&quot;')})">✏️</button>
                   <button class="btn btn-secondary btn-sm" onclick="adminResetPw(${u.id}, '${esc(u.login||u.email||'')}')">🔑 MDP</button>
                   ${u.id !== S.user.id ? `<button class="btn btn-danger btn-sm" onclick="adminDeleteUser(${u.id})">🗑</button>` : ''}
                 </div>
@@ -1690,6 +2175,7 @@ async function runMigration() {
 // ═══════════════════════════════════════════════════════════════════════════
 // MENUBAR
 // ═══════════════════════════════════════════════════════════════════════════
+let _menuJustOpened = false;
 function toggleMenu(id) {
   const all = document.querySelectorAll('.mb-dropdown');
   const btns = document.querySelectorAll('.mb-btn');
@@ -1700,16 +2186,21 @@ function toggleMenu(id) {
   if (!wasOpen) {
     target.classList.add('open');
     target.previousElementSibling?.classList.add('open');
+    _menuJustOpened = true;
+    setTimeout(() => { _menuJustOpened = false; }, 300);
   }
 }
 function closeMenus() {
   document.querySelectorAll('.mb-dropdown').forEach(d => d.classList.remove('open'));
   document.querySelectorAll('.mb-btn').forEach(b => b.classList.remove('open'));
 }
-// Close on outside click
-document.addEventListener('click', e => {
+// Close on outside click/tap
+function _outsideMenuHandler(e) {
+  if (_menuJustOpened) return;
   if (!e.target.closest('.mb-item')) closeMenus();
-});
+}
+document.addEventListener('click',      _outsideMenuHandler);
+document.addEventListener('touchstart', _outsideMenuHandler, { passive: true });
 
 function openManageMembers() {
   if (!S.currentWallet) { toast('error','Sélectionnez un portefeuille d\'abord'); return; }
@@ -1903,6 +2394,917 @@ function updateLiveIndicator(connected) {
   if (el) el.innerHTML = html;
   if (old) old.innerHTML = connected ? '<span class="live-badge"><span class="live-dot"></span>En direct</span>' : '';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE v2
+// ═══════════════════════════════════════════════════════════════════════════
+S.debts = []; S.budgets = []; S.notifications = []; S.unread = 0;
+S.profile = null; S.selectedDebtorId = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RECHERCHE GLOBALE
+// ═══════════════════════════════════════════════════════════════════════════
+let _searchTimer;
+function openSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  openModal('modal-search');
+  setTimeout(() => document.getElementById('search-input').focus(), 200);
+}
+document.getElementById('search-input').addEventListener('input', function() {
+  clearTimeout(_searchTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('search-results').innerHTML = ''; return; }
+  _searchTimer = setTimeout(() => doSearch(q), 300);
+});
+async function doSearch(q) {
+  const res = document.getElementById('search-results');
+  res.innerHTML = '<div style="text-align:center;padding:20px"><span class="spinner"></span></div>';
+  const data = await api('GET', `/api/search?q=${encodeURIComponent(q)}`);
+  if (!data) return;
+  const total = data.transactions.length + data.wallets.length + data.debts.length;
+  if (total === 0) {
+    res.innerHTML = '<div class="empty" style="padding:30px"><div class="empty-icon">🔍</div><h3>Aucun résultat</h3><p>Essayez un autre terme</p></div>';
+    return;
+  }
+  let html = '';
+  if (data.wallets.length) {
+    html += `<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 4px">Portefeuilles</div>`;
+    html += data.wallets.map(w => `
+      <div class="tx-item" onclick="closeModal('modal-search');selectWallet(${w.id});nav('dashboard')">
+        <div class="tx-icon" style="background:${w.color}22;font-size:18px">${w.icon}</div>
+        <div class="tx-info"><div class="tx-label">${esc(w.name)}</div></div>
+        <div class="tx-amount" style="color:${w.balance>=0?'var(--income)':'var(--expense)'}">${fmtAmount(w.balance)}</div>
+      </div>`).join('');
+  }
+  if (data.transactions.length) {
+    html += `<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 4px;margin-top:8px">Transactions</div>`;
+    html += data.transactions.map(t => `
+      <div class="tx-item" onclick="closeModal('modal-search');selectWallet(${t.wallet_id});nav('transactions')">
+        <div class="tx-icon ${t.type}" style="background:${t.cat_color}22">${t.cat_icon}</div>
+        <div class="tx-info">
+          <div class="tx-label">${esc(t.label)}</div>
+          <div class="tx-meta">${esc(t.wallet_name)} · ${t.date}</div>
+        </div>
+        <div class="tx-amount ${t.type}">${t.type==='income'?'+':'-'}${fmtAmount(t.amount)}</div>
+      </div>`).join('');
+  }
+  if (data.debts.length) {
+    html += `<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 4px;margin-top:8px">Dettes</div>`;
+    html += data.debts.map(d => `
+      <div class="tx-item" onclick="closeModal('modal-search');nav('debts')">
+        <div class="tx-icon" style="background:rgba(239,68,68,.1)">💸</div>
+        <div class="tx-info">
+          <div class="tx-label">${esc(d.description||'Dette')}</div>
+          <div class="tx-meta">${esc(d.debtor_name)} · ${d.status==='paid'?'✅ Remboursé':'⏳ En attente'}</div>
+        </div>
+        <div class="tx-amount expense">${fmtAmount(d.amount)}</div>
+      </div>`).join('');
+  }
+  res.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadNotifications() {
+  const data = await api('GET', '/api/notifications');
+  if (!data) return;
+  S.notifications = data.notifications;
+  S.unread = data.unread;
+  updateNotifBadge();
+}
+function updateNotifBadge() {
+  const badge = document.getElementById('notif-badge');
+  const count = document.getElementById('notif-count');
+  if (S.unread > 0) {
+    if (badge) { badge.textContent = S.unread > 9 ? '9+' : S.unread; badge.style.display='flex'; }
+    if (count) { count.textContent = S.unread; count.style.display='inline'; }
+  } else {
+    if (badge) badge.style.display='none';
+    if (count) count.style.display='none';
+  }
+}
+function openNotifs() {
+  renderNotifsModal();
+  openModal('modal-notifs');
+}
+function renderNotifsModal() {
+  const c = document.getElementById('notifs-list');
+  if (S.notifications.length === 0) {
+    c.innerHTML = '<div class="empty" style="padding:40px"><div class="empty-icon">🔔</div><h3>Aucune notification</h3></div>';
+    return;
+  }
+  const icons = { budget_alert:'⚠️', budget_exceeded:'🚨', debt:'💸', debt_paid:'✅', info:'ℹ️' };
+  c.innerHTML = S.notifications.map(n => `
+    <div style="display:flex;gap:12px;padding:12px;border-bottom:1px solid var(--border);background:${n.read?'':'rgba(99,102,241,.05)'};border-radius:8px;margin-bottom:4px">
+      <div style="font-size:22px;flex-shrink:0">${icons[n.type]||'🔔'}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:${n.read?'500':'700'}">${esc(n.title)}</div>
+        ${n.body?`<div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(n.body)}</div>`:''}
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${n.created_at?.split('T')[0]||''}</div>
+      </div>
+      <button style="background:none;color:var(--muted);font-size:13px;padding:4px;align-self:flex-start" onclick="deleteNotif(${n.id})">✕</button>
+    </div>
+  `).join('');
+}
+async function markAllRead() {
+  await api('POST', '/api/notifications/read', {});
+  S.notifications.forEach(n => n.read = true);
+  S.unread = 0;
+  updateNotifBadge();
+  renderNotifsModal();
+}
+async function deleteNotif(id) {
+  await api('DELETE', `/api/notifications/${id}`);
+  S.notifications = S.notifications.filter(n => n.id !== id);
+  S.unread = S.notifications.filter(n => !n.read).length;
+  updateNotifBadge();
+  renderNotifsModal();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DETTES
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadDebts() {
+  if (!S.currentWallet) return;
+  const data = await api('GET', `/api/wallets/${S.currentWallet.id}/debts`);
+  if (data) S.debts = data;
+}
+function renderDebts() {
+  const c = document.getElementById('content');
+  const w = S.currentWallet;
+  if (!w) { c.innerHTML = noWalletMsg(); return; }
+  const pending = S.debts.filter(d => d.status==='pending');
+  const paid    = S.debts.filter(d => d.status==='paid');
+  const totalPending = pending.reduce((a,d) => a+d.amount, 0);
+
+  c.innerHTML = `
+    <div class="page-title">💸 Dettes & Remboursements</div>
+    <div class="card-grid" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">En attente</div><div class="stat-value expense">${fmtAmount(totalPending)}</div><div class="stat-sub">${pending.length} dette${pending.length>1?'s':''}</div></div>
+      <div class="stat-card"><div class="stat-label">Remboursées</div><div class="stat-value income">${paid.length} dette${paid.length>1?'s':''}</div></div>
+    </div>
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">💸 En attente</div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateDebt()">＋ Ajouter</button>
+      </div>
+      ${pending.length===0
+        ? `<div class="empty" style="padding:30px"><div class="empty-icon">🎉</div><h3>Aucune dette en attente</h3></div>`
+        : pending.map(debtRow).join('')
+      }
+    </div>
+    ${paid.length>0 ? `
+    <div class="card" style="margin-top:16px">
+      <div class="section-title" style="margin-bottom:12px">✅ Remboursées</div>
+      ${paid.map(debtRow).join('')}
+    </div>` : ''}
+  `;
+}
+function debtRow(d) {
+  const overdue = d.due_date && d.status==='pending' && new Date(d.due_date) < new Date();
+  return `
+    <div class="tx-item" style="${overdue?'background:rgba(239,68,68,.05);':''}">
+      <div class="tx-icon" style="background:${d.status==='paid'?'rgba(34,197,94,.1)':'rgba(239,68,68,.1)'}">
+        ${d.status==='paid'?'✅':'💸'}
+      </div>
+      <div class="tx-info">
+        <div class="tx-label">${esc(d.description||'Dette')}</div>
+        <div class="tx-meta">
+          👤 ${esc(d.debtor_name||'—')}
+          ${d.due_date?` · 📅 ${d.due_date}`:''}
+          ${overdue?' · <span style="color:var(--expense);font-weight:700">EN RETARD</span>':''}
+        </div>
+      </div>
+      <div class="tx-amount expense">${fmtAmount(d.amount)}</div>
+      <div class="tx-actions">
+        ${d.status==='pending'?`<button class="btn btn-primary btn-sm" onclick="payDebt(${d.id})">✓ Payé</button>`:''}
+        <button style="background:none;color:var(--muted);font-size:14px;padding:4px;border-radius:6px" onclick="deleteDebt(${d.id})">🗑</button>
+      </div>
+    </div>`;
+}
+function openCreateDebt() {
+  S.selectedDebtorId = null;
+  document.getElementById('debt-debtor').value = '';
+  document.getElementById('debt-amount').value = '';
+  document.getElementById('debt-desc').value = '';
+  document.getElementById('debt-due').value = '';
+  document.getElementById('debt-user-results').innerHTML = '';
+  openModal('modal-debt');
+}
+let _debtSearchTimer;
+document.getElementById('debt-debtor').addEventListener('input', function() {
+  clearTimeout(_debtSearchTimer);
+  S.selectedDebtorId = null;
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('debt-user-results').innerHTML=''; return; }
+  _debtSearchTimer = setTimeout(async () => {
+    const data = await api('GET', `/api/users/search?q=${encodeURIComponent(q)}`);
+    const c = document.getElementById('debt-user-results');
+    if (!data?.length) { c.innerHTML=''; return; }
+    c.innerHTML = data.map(u => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);border-radius:8px;margin-top:4px;cursor:pointer"
+           onclick="selectDebtor(${u.id},'${esc(u.display_name||u.login||u.email)}')">
+        <div class="user-avatar" style="width:28px;height:28px;font-size:11px">${(u.name||'?')[0].toUpperCase()}</div>
+        <div><div style="font-size:13px;font-weight:600">${esc(u.name||'')}</div><div style="font-size:11px;color:var(--muted)">${esc(u.email)}</div></div>
+      </div>`).join('');
+  }, 300);
+});
+function selectDebtor(id, name) {
+  S.selectedDebtorId = id;
+  document.getElementById('debt-debtor').value = name;
+  document.getElementById('debt-user-results').innerHTML = '';
+}
+async function saveDebt() {
+  const amount = parseFloat(document.getElementById('debt-amount').value);
+  const desc   = document.getElementById('debt-desc').value.trim();
+  const debtor = document.getElementById('debt-debtor').value.trim();
+  if (!amount || amount <= 0) { toast('error','Montant requis'); return; }
+  if (!debtor) { toast('error','Nom du débiteur requis'); return; }
+  const body = {
+    amount, description: desc,
+    debtor_name: debtor,
+    debtor_id: S.selectedDebtorId || null,
+    due_date: document.getElementById('debt-due').value || null
+  };
+  const r = await api('POST', `/api/wallets/${S.currentWallet.id}/debts`, body);
+  if (r?.id) {
+    closeModal('modal-debt');
+    await loadDebts();
+    renderDebts();
+    toast('success','Dette enregistrée ✓');
+  } else toast('error', r?.error || 'Erreur');
+}
+async function payDebt(id) {
+  const r = await api('POST', `/api/debts/${id}/pay`);
+  if (r?.ok) {
+    await loadDebts(); renderDebts(); toast('success','Marqué comme remboursé ✓');
+  }
+}
+async function deleteDebt(id) {
+  if (!confirm('Supprimer cette dette ?')) return;
+  const r = await api('DELETE', `/api/debts/${id}`);
+  if (r?.ok) { await loadDebts(); renderDebts(); toast('success','Dette supprimée'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUDGETS
+// ═══════════════════════════════════════════════════════════════════════════
+let _currentBudgetMonth = new Date().toISOString().slice(0,7);
+async function loadBudgets() {
+  if (!S.currentWallet) return;
+  const data = await api('GET', `/api/wallets/${S.currentWallet.id}/budgets?month=${_currentBudgetMonth}`);
+  if (data) { S.budgets = data; loadNotifications(); }
+}
+function renderBudgets() {
+  const c = document.getElementById('content');
+  const w = S.currentWallet;
+  if (!w) { c.innerHTML = noWalletMsg(); return; }
+  const total = S.budgets.reduce((a,b)=>a+b.amount,0);
+  const spent = S.budgets.reduce((a,b)=>a+b.spent,0);
+
+  c.innerHTML = `
+    <div class="page-title">📅 Budgets mensuels</div>
+    <!-- Month selector -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn btn-secondary btn-sm" onclick="changeBudgetMonth(-1)">◀</button>
+      <span style="font-size:16px;font-weight:700">${_currentBudgetMonth}</span>
+      <button class="btn btn-secondary btn-sm" onclick="changeBudgetMonth(1)">▶</button>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openCreateBudget()">＋ Nouveau budget</button>
+    </div>
+    <!-- Summary -->
+    <div class="card-grid" style="margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Budget total</div><div class="stat-value">${fmtAmount(total)}</div></div>
+      <div class="stat-card"><div class="stat-label">Dépensé</div><div class="stat-value expense">${fmtAmount(spent)}</div></div>
+      <div class="stat-card"><div class="stat-label">Restant</div><div class="stat-value income">${fmtAmount(total-spent)}</div></div>
+    </div>
+    <!-- Budgets list -->
+    <div class="card">
+      ${S.budgets.length===0
+        ? `<div class="empty" style="padding:30px"><div class="empty-icon">📅</div><h3>Aucun budget ce mois</h3><p>Créez un budget pour suivre vos dépenses</p><br><button class="btn btn-primary" onclick="openCreateBudget()">＋ Créer un budget</button></div>`
+        : S.budgets.map(budgetRow).join('')
+      }
+    </div>
+  `;
+}
+function budgetRow(b) {
+  const color = b.status==='exceeded'?'var(--expense)':b.status==='warning'?'#f97316':'var(--income)';
+  const icon  = b.status==='exceeded'?'🚨':b.status==='warning'?'⚠️':'✅';
+  return `
+    <div style="padding:16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="font-size:20px">${b.cat_icon}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700">${esc(b.name)}</div>
+          <div style="font-size:12px;color:var(--muted)">${esc(b.cat_name)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:700;color:${color}">${icon} ${b.pct}%</div>
+          <div style="font-size:12px;color:var(--muted)">${fmtAmount(b.spent)} / ${fmtAmount(b.amount)}</div>
+        </div>
+        <button style="background:none;color:var(--muted);font-size:14px;padding:4px;border-radius:6px" onclick="deleteBudget(${b.id})">🗑</button>
+      </div>
+      <!-- Progress bar -->
+      <div style="height:8px;background:var(--bg3);border-radius:100px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(b.pct,100)}%;background:${color};border-radius:100px;transition:width .5s ease"></div>
+      </div>
+    </div>`;
+}
+async function changeBudgetMonth(dir) {
+  const [y,m] = _currentBudgetMonth.split('-').map(Number);
+  const d = new Date(y, m-1+dir, 1);
+  _currentBudgetMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  await loadBudgets();
+  renderBudgets();
+}
+function openCreateBudget() {
+  document.getElementById('budget-name').value = '';
+  document.getElementById('budget-amount').value = '';
+  document.getElementById('budget-month').value = _currentBudgetMonth;
+  document.getElementById('budget-alert').value = '80';
+  // Populate cat select
+  const sel = document.getElementById('budget-cat');
+  const expCats = S.categories.filter(c => c.type==='expense');
+  sel.innerHTML = `<option value="">— Toutes dépenses —</option>` +
+    expCats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  openModal('modal-budget');
+}
+async function saveBudget() {
+  const name   = document.getElementById('budget-name').value.trim();
+  const amount = parseFloat(document.getElementById('budget-amount').value);
+  const month  = document.getElementById('budget-month').value;
+  if (!name) { toast('error','Nom requis'); return; }
+  if (!amount || amount<=0) { toast('error','Montant requis'); return; }
+  const cat  = document.getElementById('budget-cat').value;
+  const alert= parseInt(document.getElementById('budget-alert').value) || 80;
+  const r = await api('POST', `/api/wallets/${S.currentWallet.id}/budgets`,
+    { name, amount, category_id: cat?parseInt(cat):null, month, alert_pct: alert });
+  if (r?.id) {
+    closeModal('modal-budget');
+    _currentBudgetMonth = month;
+    await loadBudgets();
+    renderBudgets();
+    toast('success', `Budget « ${name} » créé ✓`);
+  } else toast('error', r?.error || 'Erreur');
+}
+async function deleteBudget(id) {
+  if (!confirm('Supprimer ce budget ?')) return;
+  const r = await api('DELETE', `/api/budgets/${id}`);
+  if (r?.ok) { await loadBudgets(); renderBudgets(); toast('success','Budget supprimé'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFIL
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadProfile() {
+  const data = await api('GET', '/api/profile');
+  if (data) S.profile = data;
+}
+function renderProfile() {
+  const c = document.getElementById('content');
+  const p = S.profile || {};
+  const colors = ['#6366f1','#0ea5e9','#22c55e','#f97316','#ec4899','#eab308','#a855f7','#14b8a6'];
+  c.innerHTML = `
+    <div class="page-title">👤 Mon profil</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <!-- Infos perso -->
+      <div class="card">
+        <div class="section-title" style="margin-bottom:16px">Informations personnelles</div>
+        <!-- Avatar -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+          <div id="profile-avatar" style="width:64px;height:64px;border-radius:50%;background:${p.avatar_color||'#6366f1'};display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff">
+            ${(p.display_name||p.login||'?')[0].toUpperCase()}
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:700">${esc(p.display_name||p.login||'')}</div>
+            <div style="font-size:12px;color:var(--muted)">${esc(p.email||'')}</div>
+            <div style="font-size:12px;color:var(--primary)">${p.role==='admin'?'👑 Administrateur':'👤 Utilisateur'}</div>
+          </div>
+        </div>
+        <!-- Couleur avatar -->
+        <div class="form-row">
+          <label class="form-label">Couleur avatar</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${colors.map(col => `
+              <div style="width:28px;height:28px;border-radius:50%;background:${col};cursor:pointer;border:3px solid ${col===(p.avatar_color||'#6366f1')?'#fff':'transparent'};transition:border .2s"
+                   onclick="selectAvatarColor('${col}')"></div>`).join('')}
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Nom affiché</label>
+          <input id="profile-name" class="form-input" type="text" value="${esc(p.display_name||p.login||'')}" placeholder="Votre nom" autocomplete="off">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Téléphone</label>
+          <input id="profile-phone" class="form-input" type="tel" value="${esc(p.phone||'')}" placeholder="+33 6 00 00 00 00" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" onclick="saveProfile()" style="width:100%;justify-content:center">💾 Enregistrer</button>
+      </div>
+      <!-- Sécurité + Notifs -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div class="card">
+          <div class="section-title" style="margin-bottom:16px">🔒 Mot de passe</div>
+          <div class="form-row">
+            <label class="form-label">Nouveau mot de passe</label>
+            <input id="profile-pw1" class="form-input" type="password" placeholder="Nouveau mot de passe" autocomplete="new-password">
+          </div>
+          <div class="form-row">
+            <label class="form-label">Confirmer</label>
+            <input id="profile-pw2" class="form-input" type="password" placeholder="Confirmer le mot de passe" autocomplete="new-password">
+          </div>
+          <button class="btn btn-primary" onclick="changePassword()" style="width:100%;justify-content:center">🔑 Changer le mot de passe</button>
+        </div>
+        <div class="card">
+          <div class="section-title" style="margin-bottom:16px">🔔 Notifications</div>
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:12px">
+            <input type="checkbox" id="notif-app" ${p.notify_app?'checked':''} style="width:18px;height:18px;cursor:pointer">
+            <span style="font-size:14px">Notifications dans l'application</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:12px;cursor:pointer">
+            <input type="checkbox" id="notif-email" ${p.notify_email?'checked':''} style="width:18px;height:18px;cursor:pointer">
+            <span style="font-size:14px">Notifications par email</span>
+          </label>
+          <button class="btn btn-secondary btn-sm" style="margin-top:14px;width:100%;justify-content:center" onclick="saveNotifPrefs()">Enregistrer préférences</button>
+        </div>
+        <div class="card">
+          <div class="section-title" style="margin-bottom:8px">ℹ️ Infos du compte</div>
+          <div style="font-size:13px;color:var(--muted);line-height:2">
+            <div>Login : <strong style="color:var(--text)">${esc(p.login||'')}</strong></div>
+            <div>Email : <strong style="color:var(--text)">${esc(p.email||'')}</strong></div>
+            <div>Compte créé le : <strong style="color:var(--text)">${p.created_at?.split('T')[0]||'—'}</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  window._profileAvatarColor = p.avatar_color || '#6366f1';
+}
+function selectAvatarColor(col) {
+  window._profileAvatarColor = col;
+  document.getElementById('profile-avatar').style.background = col;
+  document.querySelectorAll('#content [onclick^="selectAvatarColor"]').forEach(el => {
+    el.style.borderColor = el.getAttribute('onclick').includes(col) ? '#fff' : 'transparent';
+  });
+}
+async function saveProfile() {
+  const name  = document.getElementById('profile-name')?.value.trim();
+  const phone = document.getElementById('profile-phone')?.value.trim();
+  const r = await api('PUT', '/api/profile', {
+    display_name: name, phone, avatar_color: window._profileAvatarColor
+  });
+  if (r?.ok) {
+    S.user.name = name;
+    document.getElementById('sidebar-name').textContent = name;
+    toast('success', 'Profil mis à jour ✓');
+  } else toast('error', 'Erreur mise à jour');
+}
+async function changePassword() {
+  const pw1 = document.getElementById('profile-pw1').value;
+  const pw2 = document.getElementById('profile-pw2').value;
+  if (!pw1) { toast('error','Entrez un mot de passe'); return; }
+  if (pw1.length < 4) { toast('error','Minimum 4 caractères'); return; }
+  if (pw1 !== pw2) { toast('error','Les mots de passe ne correspondent pas'); return; }
+  const r = await api('PUT', '/api/profile', { password: pw1 });
+  if (r?.ok) {
+    document.getElementById('profile-pw1').value = '';
+    document.getElementById('profile-pw2').value = '';
+    toast('success', 'Mot de passe modifié ✓');
+  } else toast('error', r?.error || 'Erreur');
+}
+async function saveNotifPrefs() {
+  const r = await api('PUT', '/api/profile', {
+    notify_app:   document.getElementById('notif-app').checked   ? 1 : 0,
+    notify_email: document.getElementById('notif-email').checked ? 1 : 0,
+  });
+  if (r?.ok) toast('success', 'Préférences enregistrées ✓');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF EXPORT (ouvre dans nouvel onglet → Ctrl+P → PDF)
+// ═══════════════════════════════════════════════════════════════════════════
+function exportPDF(month) {
+  if (!S.currentWallet) { toast('error','Sélectionnez un portefeuille'); return; }
+  const m = month || _currentBudgetMonth;
+  window.open(`/api/wallets/${S.currentWallet.id}/export/pdf?month=${m}`, '_blank');
+}
+
+// Ajout du bouton PDF dans le menu Opérations (menubar)
+const _menuOps = document.getElementById('menu-ops');
+if (_menuOps) {
+  const pdfBtn = document.createElement('button');
+  pdfBtn.className = 'mb-action';
+  pdfBtn.innerHTML = '<span class="ma-icon">📊</span> Rapport PDF du mois';
+  pdfBtn.onclick = () => { closeMenus(); exportPDF(); };
+  _menuOps.appendChild(pdfBtn);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPTE JOINT
+// ═══════════════════════════════════════════════════════════════════════════
+let _jointPartnerId = null;
+let _jointPartnerSearchTimer;
+
+function openCreateJointWallet() {
+  _jointPartnerId = null;
+  document.getElementById('joint-name').value = 'Compte Joint';
+  document.getElementById('joint-partner').value = '';
+  document.getElementById('joint-partner-results').innerHTML = '';
+  document.getElementById('joint-desc').value = '';
+  document.getElementById('joint-iban').value = '';
+  openModal('modal-joint');
+}
+
+document.getElementById('joint-partner').addEventListener('input', function() {
+  clearTimeout(_jointPartnerSearchTimer);
+  _jointPartnerId = null;
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('joint-partner-results').innerHTML = ''; return; }
+  _jointPartnerSearchTimer = setTimeout(async () => {
+    const data = await api('GET', `/api/users/search?q=${encodeURIComponent(q)}`);
+    const c = document.getElementById('joint-partner-results');
+    if (!data?.length) { c.innerHTML = '<p style="font-size:12px;color:var(--muted);margin-top:4px">Aucun utilisateur trouvé</p>'; return; }
+    c.innerHTML = data.map(u => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);border-radius:8px;margin-top:4px;cursor:pointer"
+           onclick="selectJointPartner('${u.email}','${esc(u.name||u.email)}')">
+        <div class="user-avatar" style="width:28px;height:28px;font-size:11px">${(u.name||'?')[0].toUpperCase()}</div>
+        <div><div style="font-size:13px;font-weight:600">${esc(u.name||'')}</div><div style="font-size:11px;color:var(--muted)">${esc(u.email)}</div></div>
+        <span style="margin-left:auto;font-size:11px;color:var(--income)">✓ Sélectionner</span>
+      </div>`).join('');
+  }, 300);
+});
+
+function selectJointPartner(email, name) {
+  _jointPartnerId = email;
+  document.getElementById('joint-partner').value = name + ' (' + email + ')';
+  document.getElementById('joint-partner-results').innerHTML =
+    `<div style="font-size:12px;color:var(--income);margin-top:4px">✓ ${esc(name)} sélectionné</div>`;
+}
+
+async function saveJointWallet() {
+  const name    = document.getElementById('joint-name').value.trim();
+  const partner = _jointPartnerId || document.getElementById('joint-partner').value.trim();
+  if (!name)    { toast('error', 'Nom requis'); return; }
+  if (!partner) { toast('error', 'Partenaire requis'); return; }
+  const iban = document.getElementById('joint-iban').value.trim().replace(/\s/g,'').toUpperCase();
+  if (iban && !/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(iban)) {
+    toast('error', 'Format IBAN invalide'); return;
+  }
+  const r = await api('POST', '/api/wallets/joint', {
+    name, partner,
+    description: document.getElementById('joint-desc').value.trim(),
+    currency:    document.getElementById('joint-currency').value,
+    iban,
+  });
+  if (r?.id) {
+    closeModal('modal-joint');
+    await loadWallets();
+    const w = S.wallets.find(x => x.id === r.id);
+    if (w) { S.currentWallet = w; renderWalletBar(); }
+    refreshCurrentPage();
+    toast('success', `👫 Compte joint « ${name} » créé avec ${r.partner?.name||partner} ✓`);
+  } else {
+    const msg = r?.error === 'partner_not_found' ? 'Partenaire introuvable — vérifiez l\'email' : (r?.error || 'Erreur');
+    toast('error', msg);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DÉPENSES FIXES
+// ═══════════════════════════════════════════════════════════════════════════
+S.fixedExpenses = [];
+let _editFixedId = null;
+
+async function loadFixed() {
+  // Charger les dépenses fixes de TOUS les portefeuilles accessibles
+  S.fixedExpenses = [];
+  for (const w of S.wallets) {
+    try {
+      await api('POST', `/api/wallets/${w.id}/fixed/process`);
+      const data = await api('GET', `/api/wallets/${w.id}/fixed`);
+      if (data && data.length > 0) {
+        // Ajouter le nom du wallet à chaque dépense
+        data.forEach(f => { f.wallet_name = w.name; f.wallet_icon = w.icon; f.wallet_id = w.id; });
+        S.fixedExpenses = [...S.fixedExpenses, ...data];
+      }
+    } catch(e) {}
+  }
+  // Trier par date d'échéance
+  S.fixedExpenses.sort((a,b) => (a.next_date||'').localeCompare(b.next_date||''));
+}
+
+function renderFixed() {
+  const c = document.getElementById('content');
+  const w = S.currentWallet;
+  if (!w) { c.innerHTML = noWalletMsg(); return; }
+
+  const active   = S.fixedExpenses.filter(f => f.active);
+  const inactive = S.fixedExpenses.filter(f => !f.active);
+  const totalMonthly = active.reduce((a, f) => {
+    const mult = { weekly:4.33, biweekly:2.17, monthly:1, quarterly:0.33, yearly:0.083 };
+    return a + f.amount * (mult[f.frequency] || 1);
+  }, 0);
+  const overdue = active.filter(f => f.overdue).length;
+  const dueSoon = active.filter(f => !f.overdue && f.days_left !== null && f.days_left <= 7).length;
+
+  c.innerHTML = `
+    <div class="page-title">🔁 Dépenses fixes</div>
+    <!-- Stats -->
+    <div class="card-grid" style="margin-bottom:20px">
+      <div class="stat-card">
+        <div class="stat-label">Coût mensuel estimé</div>
+        <div class="stat-value expense">${fmtAmount(totalMonthly)}</div>
+        <div class="stat-sub">${active.length} dépense${active.length>1?'s':''} active${active.length>1?'s':''}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">En retard</div>
+        <div class="stat-value" style="color:${overdue>0?'var(--expense)':'var(--income)'}">${overdue}</div>
+        <div class="stat-sub">${dueSoon} échéance${dueSoon>1?'s':''} dans 7 jours</div>
+      </div>
+    </div>
+    <!-- List active -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="section-header">
+        <div class="section-title">🔁 Dépenses actives (${active.length})</div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateFixed()">＋ Ajouter</button>
+      </div>
+      ${active.length === 0
+        ? `<div class="empty" style="padding:30px"><div class="empty-icon">🔁</div><h3>Aucune dépense fixe</h3><p>Ajoutez loyer, abonnements, EDF...</p></div>`
+        : active.map(fixedRow).join('')
+      }
+    </div>
+    ${inactive.length > 0 ? `
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px;color:var(--muted)">⏸ Désactivées (${inactive.length})</div>
+      ${inactive.map(fixedRow).join('')}
+    </div>` : ''}
+  `;
+}
+
+const FREQ_LABELS = {
+  weekly:'Hebdo', biweekly:'Bi-hebdo', monthly:'Mensuel',
+  quarterly:'Trimestriel', yearly:'Annuel'
+};
+
+function fixedRow(f) {
+  const urgency = f.overdue
+    ? 'background:rgba(239,68,68,.08);border-left:3px solid var(--expense)'
+    : f.days_left !== null && f.days_left <= 7
+      ? 'background:rgba(249,115,22,.08);border-left:3px solid #f97316'
+      : '';
+  const daysLabel = f.overdue
+    ? `<span style="color:var(--expense);font-weight:700">🚨 ${Math.abs(f.days_left)}j de retard</span>`
+    : f.days_left === 0
+      ? `<span style="color:#f97316;font-weight:700">⚠️ Aujourd'hui !</span>`
+      : f.days_left !== null && f.days_left <= 7
+        ? `<span style="color:#f97316">⚠️ Dans ${f.days_left}j</span>`
+        : `<span style="color:var(--muted)">📅 ${f.next_date}</span>`;
+
+  return `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--border);${urgency}">
+      <div style="font-size:22px;width:36px;text-align:center">${f.cat_icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700">${esc(f.label)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">
+          <span>${FREQ_LABELS[f.frequency]||f.frequency}</span>
+          <span>${esc(f.cat_name)}</span>
+          ${f.wallet_name?`<span style="color:var(--primary)">${f.wallet_icon||'💳'} ${esc(f.wallet_name)}</span>`:''}
+          ${daysLabel}
+          ${f.auto_insert?'<span style="color:var(--primary)">🤖 Auto</span>':''}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:15px;font-weight:800;color:var(--expense)">${fmtAmount(f.amount)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button class="btn btn-primary btn-sm" onclick="payFixed(${f.id})" title="Marquer comme payé aujourd'hui" style="padding:5px 10px">✓ Payer</button>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditFixed(${JSON.stringify(f).replace(/"/g,'&quot;')})" title="Modifier" style="flex:1">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteFixed(${f.id})" title="Supprimer" style="flex:1">🗑</button>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="toggleFixed(${f.id},${f.active?0:1})" style="font-size:10px;padding:3px 6px">
+          ${f.active?'⏸ Désactiver':'▶ Activer'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function openCreateFixed() {
+  _editFixedId = null;
+  document.getElementById('modal-fixed-title').textContent = 'Nouvelle dépense fixe';
+  document.getElementById('fixed-label').value = '';
+  document.getElementById('fixed-amount').value = '';
+  document.getElementById('fixed-note').value = '';
+  document.getElementById('fixed-auto').checked = false;
+  document.getElementById('fixed-freq').value = 'monthly';
+  // First of next month as default
+  const d = new Date(); d.setMonth(d.getMonth()+1); d.setDate(1);
+  document.getElementById('fixed-next').value = d.toISOString().split('T')[0];
+  // Populate wallet select
+  const wsel = document.getElementById('fixed-wallet');
+  wsel.innerHTML = S.wallets.map(w =>
+    `<option value="${w.id}" ${w.id===S.currentWallet?.id?'selected':''}>${w.icon} ${w.name}</option>`
+  ).join('');
+  // Populate cat
+  const sel = document.getElementById('fixed-cat');
+  const cats = S.categories.filter(c => c.type === 'expense');
+  sel.innerHTML = '<option value="">— Sans catégorie —</option>' +
+    cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  document.getElementById('btn-save-fixed').textContent = 'Créer';
+  const wselEl = document.getElementById('fixed-wallet');
+  if (wselEl) wselEl.disabled = false;
+  openModal('modal-fixed');
+}
+
+function openEditFixed(f) {
+  _editFixedId = f.id;
+  document.getElementById('modal-fixed-title').textContent = 'Modifier la dépense fixe';
+  document.getElementById('fixed-label').value = f.label;
+  document.getElementById('fixed-amount').value = f.amount;
+  document.getElementById('fixed-note').value = f.note || '';
+  document.getElementById('fixed-auto').checked = f.auto_insert;
+  document.getElementById('fixed-freq').value = f.frequency;
+  document.getElementById('fixed-next').value = f.next_date;
+  // Wallet selector (disabled en mode édition - ne peut pas changer de wallet)
+  const wsel = document.getElementById('fixed-wallet');
+  wsel.innerHTML = S.wallets.map(w =>
+    `<option value="${w.id}" ${w.id===S.currentWallet?.id?'selected':''}>${w.icon} ${w.name}</option>`
+  ).join('');
+  wsel.disabled = true;
+  const sel = document.getElementById('fixed-cat');
+  const cats = S.categories.filter(c => c.type === 'expense');
+  sel.innerHTML = '<option value="">— Sans catégorie —</option>' +
+    cats.map(c => `<option value="${c.id}" ${c.id===f.category_id?'selected':''}>${c.icon} ${c.name}</option>`).join('');
+  document.getElementById('btn-save-fixed').textContent = 'Mettre à jour';
+  openModal('modal-fixed');
+}
+
+async function saveFixed() {
+  const label  = document.getElementById('fixed-label').value.trim();
+  const amount = parseFloat(document.getElementById('fixed-amount').value);
+  if (!label)         { toast('error','Libellé requis'); return; }
+  if (!amount||amount<=0) { toast('error','Montant requis'); return; }
+  const btn = document.getElementById('btn-save-fixed');
+  btn.disabled = true;
+  const body = {
+    label, amount,
+    category_id:  document.getElementById('fixed-cat').value   ? parseInt(document.getElementById('fixed-cat').value)  : null,
+    frequency:    document.getElementById('fixed-freq').value,
+    next_date:    document.getElementById('fixed-next').value,
+    auto_insert:  document.getElementById('fixed-auto').checked ? 1 : 0,
+    note:         document.getElementById('fixed-note').value.trim(),
+  };
+  let r;
+  if (_editFixedId) {
+    r = await api('PUT', `/api/fixed/${_editFixedId}`, body);
+  } else {
+    r = await api('POST', `/api/wallets/${S.currentWallet.id}/fixed`, body);
+  }
+  btn.disabled = false;
+  if (r?.id || r?.ok) {
+    closeModal('modal-fixed');
+    await loadFixed();
+    renderFixed();
+    toast('success', _editFixedId ? 'Dépense fixe mise à jour ✓' : `« ${label} » ajouté ✓`);
+  } else {
+    toast('error', r?.error || 'Erreur enregistrement');
+  }
+}
+
+async function payFixed(id) {
+  const r = await api('POST', `/api/fixed/${id}/pay`);
+  if (r?.ok) {
+    if (S.currentWallet) S.currentWallet.balance = r.balance;
+    renderWalletBar();
+    await loadFixed();
+    renderFixed();
+    toast('success', `✓ Payé ! Prochaine échéance : ${r.next_date}`);
+  } else toast('error', r?.error || 'Erreur');
+}
+
+async function deleteFixed(id) {
+  if (!confirm('Supprimer cette dépense fixe ?')) return;
+  const r = await api('DELETE', `/api/fixed/${id}`);
+  if (r?.ok) {
+    await loadFixed(); renderFixed();
+    toast('success', 'Dépense fixe supprimée');
+  } else toast('error', 'Erreur suppression');
+}
+
+async function toggleFixed(id, active) {
+  const r = await api('PUT', `/api/fixed/${id}`, { active });
+  if (r?.ok) {
+    await loadFixed(); renderFixed();
+    toast('info', active ? 'Dépense réactivée' : 'Dépense désactivée');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — MODIFIER UTILISATEUR
+// ═══════════════════════════════════════════════════════════════════════════
+let _adminEditUserId = null;
+
+function adminEditUser(u) {
+  _adminEditUserId = u.id;
+  document.getElementById('auser-login').value  = u.login  || '';
+  document.getElementById('auser-name').value   = u.display_name || u.login || '';
+  document.getElementById('auser-email').value  = u.email  || '';
+  document.getElementById('auser-role').value   = u.role   || 'user';
+  document.getElementById('auser-pw').value     = '';
+  openModal('modal-admin-user');
+}
+
+async function saveAdminUser() {
+  if (!_adminEditUserId) return;
+  const login = document.getElementById('auser-login').value.trim();
+  const name  = document.getElementById('auser-name').value.trim();
+  const email = document.getElementById('auser-email').value.trim();
+  const role  = document.getElementById('auser-role').value;
+  const pw    = document.getElementById('auser-pw').value;
+
+  if (!login || !email) { toast('error', 'Login et email requis'); return; }
+
+  // Mise à jour role
+  await api('PUT', `/api/admin/users/${_adminEditUserId}/role`, { role });
+
+  // Mise à jour infos (login, email, display_name)
+  const r = await api('PUT', `/api/admin/users/${_adminEditUserId}/info`, {
+    login, display_name: name, email
+  });
+
+  // Mise à jour MDP si renseigné
+  if (pw && pw.length >= 4) {
+    await api('PUT', `/api/admin/users/${_adminEditUserId}/password`, { password: pw });
+  } else if (pw && pw.length < 4) {
+    toast('error', 'Mot de passe trop court (min 4 caractères)');
+    return;
+  }
+
+  if (r?.ok) {
+    closeModal('modal-admin-user');
+    renderAdminUsers();
+    toast('success', 'Utilisateur mis à jour ✓');
+  } else {
+    toast('error', r?.error || 'Erreur mise à jour');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PWA INSTALL
+// ═══════════════════════════════════════════════════════════════════════════
+let _deferredInstall = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstall = e;
+  // Afficher le banner si pas déjà installé
+  if (!localStorage.getItem('pwa_dismissed')) {
+    const banner = document.getElementById('pwa-banner');
+    if (banner) banner.style.display = 'flex';
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-banner').style.display = 'none';
+  toast('success', '✅ FinanceApp installé avec succès !');
+  _deferredInstall = null;
+});
+
+function installPWA() {
+  if (_deferredInstall) {
+    _deferredInstall.prompt();
+    _deferredInstall.userChoice.then(result => {
+      if (result.outcome === 'accepted') {
+        toast('success', 'Installation en cours...');
+      }
+      _deferredInstall = null;
+      document.getElementById('pwa-banner').style.display = 'none';
+    });
+  } else {
+    // iOS — instructions manuelles
+    toast('info', '📱 Sur iPhone : Partager → "Sur l\'écran d\'accueil"');
+  }
+}
+
+function dismissPWA() {
+  localStorage.setItem('pwa_dismissed', '1');
+  document.getElementById('pwa-banner').style.display = 'none';
+}
+
+// Bouton install dans le menu Affichage
+setTimeout(() => {
+  const viewMenu = document.getElementById('menu-view');
+  if (viewMenu) {
+    const sep = document.createElement('div');
+    sep.className = 'mb-sep';
+    viewMenu.appendChild(sep);
+    const btn = document.createElement('button');
+    btn.className = 'mb-action';
+    btn.innerHTML = '<span class="ma-icon">📱</span> Installer l\'app';
+    btn.onclick = () => { closeMenus(); installPWA(); };
+    viewMenu.appendChild(btn);
+  }
+}, 1000);
 
 </script>
 </body>

@@ -122,11 +122,25 @@ defaults = [
     ('Autre revenu','income','#6b7280','\U0001f4b0'),
 ]
 for name, t, color, icon in defaults:
-    cur.execute(
-        "INSERT OR IGNORE INTO categories (name,type,color,icon,user_id) VALUES (?,?,?,?,NULL)",
-        (name, t, color, icon)
-    )
+    cur.execute("SELECT id FROM categories WHERE name=? AND type=? AND user_id IS NULL", (name, t))
+    if not cur.fetchone():
+        cur.execute(
+            "INSERT INTO categories (name,type,color,icon,user_id) VALUES (?,?,?,?,NULL)",
+            (name, t, color, icon)
+        )
 
+
+# Nettoyer les doublons existants (garde le plus ancien)
+cur.execute("""
+    DELETE FROM categories
+    WHERE user_id IS NULL AND id NOT IN (
+        SELECT MIN(id) FROM categories
+        WHERE user_id IS NULL
+        GROUP BY name, type
+    )
+""")
+conn.commit()
+print("Doublons de categories supprimes.")
 conn.commit()
 conn.close()
 print("Migration finance terminee sur", db.as_posix())
