@@ -11,13 +11,47 @@ cur.execute("PRAGMA journal_mode=WAL;")
 
 print(f"Migration sur : {db.as_posix()}")
 
-# S'assurer que la colonne 'name' existe dans users (app.db ne l'a pas toujours)
+# ── Créer la table users si elle n'existe pas (DB vide sur Railway) ───────────
+cur.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    name          TEXT    DEFAULT '',
+    login         TEXT,
+    email         TEXT    UNIQUE NOT NULL DEFAULT '',
+    password_hash TEXT,
+    role          TEXT    DEFAULT 'user',
+    status        TEXT    DEFAULT '',
+    display_name  TEXT    DEFAULT '',
+    avatar_color  TEXT    DEFAULT '#6366f1',
+    phone         TEXT    DEFAULT '',
+    notify_email  INTEGER DEFAULT 1,
+    notify_app    INTEGER DEFAULT 1,
+    created_at    TEXT    DEFAULT CURRENT_TIMESTAMP
+)
+""")
+cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+conn.commit()
+
+# S'assurer que la colonne 'name' existe dans users
 user_cols = [r[1] for r in cur.execute("PRAGMA table_info(users)").fetchall()]
-if 'name' not in user_cols:
-    cur.execute("ALTER TABLE users ADD COLUMN name TEXT DEFAULT ''")
-    cur.execute("UPDATE users SET name = COALESCE(login, email) WHERE name IS NULL OR name = ''")
-    conn.commit()
-    print("Colonne 'name' ajoutee a users.")
+for col, defn in [
+    ('name',         "TEXT DEFAULT ''"),
+    ('login',        "TEXT"),
+    ('display_name', "TEXT DEFAULT ''"),
+    ('avatar_color', "TEXT DEFAULT '#6366f1'"),
+    ('phone',        "TEXT DEFAULT ''"),
+    ('notify_email', "INTEGER DEFAULT 1"),
+    ('notify_app',   "INTEGER DEFAULT 1"),
+    ('role',         "TEXT DEFAULT 'user'"),
+    ('status',       "TEXT DEFAULT ''"),
+]:
+    if col not in user_cols:
+        try:
+            cur.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
+            print(f"Colonne users.{col} ajoutee.")
+        except Exception:
+            pass
+conn.commit()
 
 cur.execute("""
 CREATE TABLE IF NOT EXISTS wallets (
