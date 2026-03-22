@@ -849,3 +849,49 @@ def admin_migrate():
         return jsonify({'ok': result.returncode == 0, 'output': result.stdout + result.stderr})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@finance_bp.route('/api/categories/<int:cat_id>', methods=['PUT'])
+def api_update_category(cat_id):
+    p = _auth()
+    if not p: return jsonify({'error': 'unauthorized'}), 401
+    uid = _uid(p)
+    data = request.get_json() or {}
+    conn = get_conn(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT user_id FROM categories WHERE id=?", (cat_id,))
+        row = cur.fetchone()
+        if not row: return jsonify({'error': 'not_found'}), 404
+        # Can edit own categories or global (admin only)
+        if row[0] is not None and row[0] != uid:
+            return jsonify({'error': 'forbidden'}), 403
+        fields, vals = [], []
+        for f in ('name','type','icon','color'):
+            if f in data:
+                fields.append(f"{f}=?"); vals.append(data[f])
+        if not fields: return jsonify({'error': 'nothing_to_update'}), 400
+        vals.append(cat_id)
+        cur.execute(f"UPDATE categories SET {', '.join(fields)} WHERE id=?", vals)
+        conn.commit()
+        return jsonify({'ok': True})
+    finally:
+        cur.close(); conn.close()
+
+@finance_bp.route('/api/categories/<int:cat_id>', methods=['DELETE'])
+def api_delete_category(cat_id):
+    p = _auth()
+    if not p: return jsonify({'error': 'unauthorized'}), 401
+    uid = _uid(p)
+    conn = get_conn(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT user_id FROM categories WHERE id=?", (cat_id,))
+        row = cur.fetchone()
+        if not row: return jsonify({'error': 'not_found'}), 404
+        if row[0] is not None and row[0] != uid:
+            return jsonify({'error': 'forbidden'}), 403
+        # Set transactions to null category instead of deleting
+        cur.execute("UPDATE transactions SET category_id=NULL WHERE category_id=?", (cat_id,))
+        cur.execute("DELETE FROM categories WHERE id=?", (cat_id,))
+        conn.commit()
+        return jsonify({'ok': True})
+    finally:
+        cur.close(); conn.close()
