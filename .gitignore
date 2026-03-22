@@ -1,0 +1,51 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Environnement virtuel ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Bases de données (NE PAS COMMITTER) ───────────────────────────────────────
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/
+
+# ── Secrets & config sensible ─────────────────────────────────────────────────
+.env
+*.env
+config_local.py
+set_password_secure.py
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+server.log
+logs/
+
+# ── OS & éditeurs ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Fichiers CSV avec données perso ───────────────────────────────────────────
+Utilisateurs.csv
+invalid_emails.csv
+
+# ── Tokens & clés JWT dans payload ────────────────────────────────────────────
+payload.json
+refresh_tokens.db

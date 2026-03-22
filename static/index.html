@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6366f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FinanceApp">
+<link rel="manifest" href="/static/manifest.json">
+<title>FinanceApp</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0f172a;
+  --bg2:      #1e293b;
+  --bg3:      #334155;
+  --border:   #334155;
+  --primary:  #6366f1;
+  --primary2: #4f46e5;
+  --income:   #22c55e;
+  --expense:  #ef4444;
+  --text:     #f1f5f9;
+  --muted:    #94a3b8;
+  --card:     #1e293b;
+  --radius:   14px;
+  --sidebar:  250px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+input,select,textarea,button{font-family:inherit}
+button{cursor:pointer;border:none;outline:none}
+a{color:inherit;text-decoration:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────────── */
+#app{display:flex;min-height:100vh}
+#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform .3s}
+#main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+#content{flex:1;padding:24px;max-width:1100px;width:100%;margin:0 auto}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────────── */
+.sidebar-logo{padding:24px 20px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sidebar-logo span{font-size:22px;font-weight:700;background:linear-gradient(135deg,var(--primary),#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-logo .logo-icon{font-size:28px}
+.sidebar-nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:4px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--muted);font-size:14px;font-weight:500}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--primary);color:#fff}
+.nav-item .nav-icon{font-size:18px;width:22px;text-align:center}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border)}
+.user-chip{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--bg3)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:11px;color:var(--muted)}
+.btn-logout{background:none;color:var(--muted);font-size:16px;padding:4px;border-radius:6px;transition:color .2s}
+.btn-logout:hover{color:var(--expense)}
+
+/* ── HEADER ──────────────────────────────────────────────────────────── */
+#topbar{display:none;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;height:56px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:16px;font-weight:700}
+.topbar-actions{display:flex;gap:8px}
+
+/* ── WALLET SELECTOR ─────────────────────────────────────────────────── */
+#wallet-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:12px;overflow-x:auto}
+#wallet-bar::-webkit-scrollbar{height:0}
+.wallet-pill{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:100px;background:var(--bg3);cursor:pointer;white-space:nowrap;transition:all .2s;border:2px solid transparent;font-size:13px;font-weight:500;color:var(--muted)}
+.wallet-pill:hover{color:var(--text)}
+.wallet-pill.active{border-color:var(--primary);color:var(--text);background:rgba(99,102,241,.15)}
+.wallet-pill .wp-icon{font-size:16px}
+.wallet-pill .wp-bal{font-size:11px;color:var(--muted)}
+.wallet-pill.active .wp-bal{color:var(--primary)}
+.btn-new-wallet{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:100px;background:none;border:2px dashed var(--border);color:var(--muted);font-size:13px;font-weight:500;transition:all .2s}
+.btn-new-wallet:hover{border-color:var(--primary);color:var(--primary)}
+
+/* ── CARDS ───────────────────────────────────────────────────────────── */
+.card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.stat-label{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-value{font-size:26px;font-weight:700}
+.stat-value.income{color:var(--income)}
+.stat-value.expense{color:var(--expense)}
+.stat-sub{font-size:12px;color:var(--muted)}
+.balance-card{background:linear-gradient(135deg,var(--primary),var(--primary2));border-radius:var(--radius);padding:28px;color:#fff;border:none;position:relative;overflow:hidden}
+.balance-card::after{content:'💳';position:absolute;right:-10px;top:-10px;font-size:100px;opacity:.08}
+.balance-title{font-size:13px;font-weight:500;opacity:.8;margin-bottom:8px}
+.balance-amount{font-size:36px;font-weight:800;letter-spacing:-1px}
+.balance-sub{margin-top:16px;display:flex;gap:24px}
+.balance-sub-item{font-size:13px;opacity:.85}
+.balance-sub-item span{font-weight:700}
+
+/* ── SECTION TITLES ──────────────────────────────────────────────────── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-title{font-size:16px;font-weight:700}
+.section-action{font-size:13px;color:var(--primary);cursor:pointer;font-weight:500}
+.section-action:hover{text-decoration:underline}
+
+/* ── TRANSACTIONS LIST ───────────────────────────────────────────────── */
+.tx-list{display:flex;flex-direction:column;gap:2px}
+.tx-item{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:10px;transition:background .15s;cursor:pointer}
+.tx-item:hover{background:var(--bg3)}
+.tx-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tx-icon.income{background:rgba(34,197,94,.15)}
+.tx-icon.expense{background:rgba(239,68,68,.15)}
+.tx-info{flex:1;min-width:0}
+.tx-label{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-amount{font-size:15px;font-weight:700;white-space:nowrap}
+.tx-amount.income{color:var(--income)}
+.tx-amount.expense{color:var(--expense)}
+.tx-actions{display:flex;gap:6px;opacity:0;transition:opacity .2s}
+.tx-item:hover .tx-actions{opacity:1}
+.tx-actions button{background:none;color:var(--muted);font-size:14px;padding:4px;border-radius:6px}
+.tx-actions button:hover{color:var(--expense);background:rgba(239,68,68,.1)}
+
+/* ── FILTERS ─────────────────────────────────────────────────────────── */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-input{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;transition:border .2s}
+.filter-input:focus{border-color:var(--primary)}
+.filter-input.grow{flex:1;min-width:140px}
+.filter-select{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;cursor:pointer}
+.filter-select:focus{border-color:var(--primary)}
+
+/* ── BUTTONS ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;transition:all .2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary2);transform:translateY(-1px)}
+.btn-secondary{background:var(--bg3);color:var(--text)}
+.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--expense)}
+.btn-danger:hover{background:rgba(239,68,68,.25)}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+.btn-fab{position:fixed;bottom:calc(72px + env(safe-area-inset-bottom));right:20px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(99,102,241,.5);z-index:90;transition:all .2s}
+.btn-fab:hover{transform:scale(1.05);background:var(--primary2)}
+
+/* ── MODAL ───────────────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;padding:24px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:var(--bg3);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .2s}
+.modal-close:hover{background:var(--border);color:var(--text)}
+.form-row{margin-bottom:16px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;transition:border .2s}
+.form-input:focus{border-color:var(--primary)}
+.form-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;cursor:pointer}
+textarea.form-input{resize:vertical;min-height:70px}
+.type-toggle{display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.type-btn{flex:1;padding:10px;font-size:14px;font-weight:600;background:var(--bg3);color:var(--muted);transition:all .2s;border:none}
+.type-btn.active.expense{background:rgba(239,68,68,.2);color:var(--expense)}
+.type-btn.active.income{background:rgba(34,197,94,.2);color:var(--income)}
+.modal-actions{display:flex;gap:10px;margin-top:20px}
+.modal-actions .btn{flex:1;justify-content:center}
+
+/* ── WALLET CARDS ─────────────────────────────────────────────────────── */
+.wallet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.wallet-card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border);cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.wallet-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+.wallet-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.wallet-card-icon{font-size:28px;width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.wallet-card-menu{color:var(--muted);font-size:18px;padding:4px}
+.wallet-card-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.wallet-card-desc{font-size:12px;color:var(--muted)}
+.wallet-card-balance{font-size:22px;font-weight:800;margin-top:12px}
+.wallet-card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:100px;font-size:11px;font-weight:600}
+.badge-shared{background:rgba(99,102,241,.15);color:var(--primary)}
+.badge-mine{background:rgba(34,197,94,.1);color:var(--income)}
+
+/* ── CHARTS ──────────────────────────────────────────────────────────── */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.chart-card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border)}
+.chart-card h3{font-size:14px;font-weight:600;margin-bottom:16px;color:var(--muted)}
+.chart-wrap{position:relative;height:220px}
+
+/* ── LIVE INDICATOR ──────────────────────────────────────────────────── */
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--income);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.live-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--income);background:rgba(34,197,94,.1);padding:4px 8px;border-radius:100px}
+
+/* ── LOGIN ───────────────────────────────────────────────────────────── */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+.login-card{background:var(--card);border-radius:20px;padding:40px;width:100%;max-width:400px;border:1px solid var(--border)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo .logo-em{font-size:56px}
+.login-logo h1{font-size:24px;font-weight:800;margin-top:12px;background:linear-gradient(135deg,var(--primary),#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.login-logo p{font-size:14px;color:var(--muted);margin-top:6px}
+.login-error{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--expense);margin-bottom:16px;display:none}
+.login-btn{width:100%;padding:14px;border-radius:12px;background:var(--primary);color:#fff;font-size:15px;font-weight:700;margin-top:8px;transition:all .2s}
+.login-btn:hover{background:var(--primary2);transform:translateY(-1px)}
+.login-btn:disabled{opacity:.6;transform:none;cursor:wait}
+
+/* ── BOTTOM NAV (mobile) ─────────────────────────────────────────────── */
+#bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:100;flex-direction:row;justify-content:space-around}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;border-radius:10px;cursor:pointer;color:var(--muted);font-size:10px;font-weight:500;transition:all .2s;min-width:56px}
+.bnav-item .bi{font-size:20px}
+.bnav-item.active{color:var(--primary)}
+.bnav-item.active .bi{filter:drop-shadow(0 0 6px var(--primary))}
+
+/* ── TOASTS ──────────────────────────────────────────────────────────── */
+#toast-container{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:13px;font-weight:500;min-width:200px;max-width:320px;display:flex;align-items:center;gap:10px;animation:slideIn .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.toast.success{border-color:var(--income);color:var(--income)}
+.toast.error{border-color:var(--expense);color:var(--expense)}
+.toast.info{border-color:var(--primary);color:var(--primary)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── EMPTY STATE ──────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty h3{font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.empty p{font-size:13px}
+
+/* ── SPINNER ─────────────────────────────────────────────────────────── */
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MEMBER CHIP ─────────────────────────────────────────────────────── */
+.member-chip{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:10px;margin-bottom:8px}
+.member-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+
+/* ── PAGE TITLE ───────────────────────────────────────────────────────── */
+.page-title{font-size:22px;font-weight:800;margin-bottom:20px;display:flex;align-items:center;gap:12px}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────────── */
+@media (max-width:768px){
+  #sidebar{display:none!important}
+  #main{margin-left:0}
+  #topbar{display:flex}
+  #bottom-nav{display:flex}
+  #content{padding:16px;padding-bottom:90px}
+  .btn-fab{bottom:calc(80px + env(safe-area-inset-bottom))}
+  .charts-grid{grid-template-columns:1fr}
+  .card-grid{grid-template-columns:1fr 1fr}
+  .wallet-grid{grid-template-columns:1fr}
+  #wallet-bar{padding:10px 16px}
+  .balance-amount{font-size:28px}
+}
+@media (max-width:400px){
+  .card-grid{grid-template-columns:1fr}
+}
+
+/* ── ADMIN ───────────────────────────────────────────────────────────── */
+.admin-tab{flex:1;padding:10px;font-size:13px;font-weight:600;background:none;color:var(--muted);border-radius:8px;transition:all .2s}
+.admin-tab:hover{background:var(--bg3);color:var(--text)}
+.admin-tab.active{background:var(--primary);color:#fff}
+table th,table td{vertical-align:middle}
+code{font-family:'Courier New',monospace;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ─────────────────────────────────────────────────────────────── -->
+<div id="login-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-em">💳</div>
+      <h1>FinanceApp</h1>
+      <p>Gérez vos comptes, partout</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="form-row">
+      <label class="form-label">Identifiant ou email</label>
+      <input id="login-id" class="form-input" type="text" placeholder="Yoann ou email@exemple.com" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Mot de passe</label>
+      <input id="login-pw" class="form-input" type="password" placeholder="••••••••" autocomplete="new-password">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
+  </div>
+</div>
+
+<!-- ── MAIN APP ───────────────────────────────────────────────────────────── -->
+<div id="app" style="display:none">
+
+  <!-- Sidebar desktop -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">💳</span>
+      <span>FinanceApp</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">🏠</span> Tableau de bord
+      </div>
+      <div class="nav-item" onclick="nav('transactions')" id="nav-transactions">
+        <span class="nav-icon">📋</span> Transactions
+      </div>
+      <div class="nav-item" onclick="nav('stats')" id="nav-stats">
+        <span class="nav-icon">📊</span> Statistiques
+      </div>
+      <div class="nav-item" onclick="nav('wallets')" id="nav-wallets">
+        <span class="nav-icon">👛</span> Portefeuilles
+      </div>
+      <div class="nav-item" id="nav-admin" style="display:none" onclick="nav('admin')">
+        <span class="nav-icon">⚙️</span> Administration
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="sidebar-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-name">—</div>
+          <div class="user-role" id="sidebar-role">—</div>
+        </div>
+        <button class="btn-logout" title="Déconnexion" onclick="logout()">⏻</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Topbar mobile -->
+    <div id="topbar">
+      <div class="topbar-title" id="topbar-title">Tableau de bord</div>
+      <div class="topbar-actions">
+        <span id="live-ind"></span>
+        <button style="background:none;color:var(--muted);font-size:18px" onclick="logout()">⏻</button>
+      </div>
+    </div>
+
+    <!-- Wallet selector -->
+    <div id="wallet-bar">
+      <div id="wallet-pills"></div>
+      <button class="btn-new-wallet" onclick="openCreateWallet()">＋ Nouveau</button>
+    </div>
+
+    <!-- Page content -->
+    <div id="content"></div>
+  </div>
+
+  <!-- Bottom nav mobile -->
+  <nav id="bottom-nav">
+    <div class="bnav-item active" onclick="nav('dashboard')" id="bnav-dashboard">
+      <span class="bi">🏠</span><span>Accueil</span>
+    </div>
+    <div class="bnav-item" onclick="nav('transactions')" id="bnav-transactions">
+      <span class="bi">📋</span><span>Transactions</span>
+    </div>
+    <div class="bnav-item" onclick="nav('stats')" id="bnav-stats">
+      <span class="bi">📊</span><span>Stats</span>
+    </div>
+    <div class="bnav-item" onclick="nav('wallets')" id="bnav-wallets">
+      <span class="bi">👛</span><span>Comptes</span>
+    </div>
+    <div class="bnav-item" id="bnav-admin" style="display:none" onclick="nav('admin')">
+      <span class="bi">⚙️</span><span>Admin</span>
+    </div>
+  </nav>
+
+  <!-- FAB -->
+  <button class="btn-fab" onclick="openAddTx()" id="fab" title="Ajouter une transaction">＋</button>
+</div>
+
+<!-- ── MODALS ─────────────────────────────────────────────────────────────── -->
+<!-- Add/Edit Transaction -->
+<div class="modal-overlay" id="modal-tx">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-tx-title">Nouvelle transaction</span>
+      <button class="modal-close" onclick="closeModal('modal-tx')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="type-toggle">
+        <button class="type-btn expense active" id="type-expense" onclick="setType('expense')">📉 Dépense</button>
+        <button class="type-btn income" id="type-income" onclick="setType('income')">📈 Revenu</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Montant (€)</label>
+      <input id="tx-amount" class="form-input" type="number" step="0.01" min="0.01" placeholder="0.00">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Libellé</label>
+      <input id="tx-label" class="form-input" type="text" placeholder="Ex: Courses Lidl, Salaire...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Catégorie</label>
+      <select id="tx-category" class="form-select"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date</label>
+      <input id="tx-date" class="form-input" type="date">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Note (optionnel)</label>
+      <textarea id="tx-note" class="form-input" placeholder="Détails supplémentaires..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tx')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveTx()" id="btn-save-tx">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Wallet -->
+<div class="modal-overlay" id="modal-wallet">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Nouveau portefeuille</span>
+      <button class="modal-close" onclick="closeModal('modal-wallet')">✕</button>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Nom</label>
+      <input id="wlt-name" class="form-input" type="text" placeholder="Ex: Compte courant, Épargne...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <input id="wlt-desc" class="form-input" type="text" placeholder="Optionnel">
+    </div>
+    <div class="form-row">
+      <label class="form-label">IBAN <span style="color:var(--muted);font-weight:400">(optionnel)</span></label>
+      <input id="wlt-iban" class="form-input" type="text" placeholder="FR76 3000 6000 0112 3456 7890 189" maxlength="34" oninput="formatIban(this)">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Devise</label>
+      <select id="wlt-currency" class="form-select">
+        <option value="EUR">€ Euro</option>
+        <option value="USD">$ Dollar</option>
+        <option value="GBP">£ Livre sterling</option>
+        <option value="CHF">₣ Franc suisse</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Icône</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="icon-picker">
+        <span>💳</span><span>🏦</span><span>💰</span><span>🏧</span><span>💵</span><span>🪙</span><span>📊</span><span>🏠</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Couleur</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="color-picker">
+        <span data-color="#6366f1">🟣</span><span data-color="#3b82f6">🔵</span>
+        <span data-color="#22c55e">🟢</span><span data-color="#ef4444">🔴</span>
+        <span data-color="#f97316">🟠</span><span data-color="#eab308">🟡</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-wallet')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveWallet()">Créer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Wallet Members -->
+<div class="modal-overlay" id="modal-members">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Partager le portefeuille</span>
+      <button class="modal-close" onclick="closeModal('modal-members')">✕</button>
+    </div>
+    <div id="members-list" style="margin-bottom:20px"></div>
+    <div class="form-row">
+      <label class="form-label">Inviter un utilisateur</label>
+      <div style="display:flex;gap:8px">
+        <input id="member-search" class="form-input" style="flex:1" type="text" placeholder="Nom ou email">
+        <button class="btn btn-primary btn-sm" onclick="addMember()">Inviter</button>
+      </div>
+      <div id="member-results" style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const S = {
+  user: null, token: null,
+  wallets: [], currentWallet: null,
+  transactions: [], total: 0, txOffset: 0,
+  categories: [],
+  currentPage: 'dashboard',
+  charts: {},
+  editTxId: null, txType: 'expense',
+  wltIcon: '💳', wltColor: '#6366f1',
+  membersWalletId: null,
+  sse: null, sseConnected: false,
+  filters: { type: '', category_id: '', from: '', to: '', q: '' }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════════════════════════
+async function api(method, path, body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(S.token ? { Authorization: 'Bearer ' + S.token } : {}) }
+  };
+  if (body !== null) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (r.status === 401) { logout(); return null; }
+  const ct = r.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return r.json();
+  return r;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════════════
+function saveAuth(user, token) {
+  S.user = user; S.token = token;
+  localStorage.setItem('fa_token', token);
+  localStorage.setItem('fa_user', JSON.stringify(user));
+}
+function loadAuth() {
+  const t = localStorage.getItem('fa_token');
+  const u = localStorage.getItem('fa_user');
+  if (t && u) { S.token = t; S.user = JSON.parse(u); return true; }
+  return false;
+}
+function logout() {
+  S.token = null; S.user = null;
+  localStorage.removeItem('fa_token'); localStorage.removeItem('fa_user');
+  if (S.sse) S.sse.close();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  if (!id || !pw) { showLoginError('Renseignez votre identifiant et mot de passe.'); return; }
+  btn.disabled = true; btn.textContent = 'Connexion…';
+  try {
+    const r = await fetch('/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: id, password: pw })
+    });
+    const data = await r.json();
+    if (data.status === 'ok') {
+      saveAuth(data.user, data.token);
+      err.style.display = 'none';
+      bootApp();
+    } else {
+      showLoginError(data.message || 'Identifiants incorrects.');
+    }
+  } catch(e) { showLoginError('Impossible de contacter le serveur.'); }
+  btn.disabled = false; btn.textContent = 'Se connecter';
+}
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+document.getElementById('login-pw').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════════
+async function bootApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  // User info
+  const displayName = S.user.name || S.user.login || S.user.email || '';
+  document.getElementById('sidebar-name').textContent = displayName;
+  document.getElementById('sidebar-role').textContent = S.user.role === 'admin' ? 'Administrateur' : 'Utilisateur';
+  document.getElementById('sidebar-avatar').textContent = (displayName || '?')[0].toUpperCase();
+  // Afficher l'onglet admin si l'utilisateur est admin
+  if (S.user.role === 'admin') {
+    document.getElementById('nav-admin').style.display = 'flex';
+    document.getElementById('bnav-admin').style.display = 'flex';
+  }
+  // Load data
+  await loadCategories();
+  await loadWallets();
+  connectSSE();
+  nav('dashboard');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SSE — temps réel
+// ═══════════════════════════════════════════════════════════════════════════
+function connectSSE() {
+  if (S.sse) S.sse.close();
+  const url = '/api/events';
+  const es = new EventSource(url + '?token=' + encodeURIComponent(S.token));
+  S.sse = es;
+  es.onopen = () => {
+    S.sseConnected = true;
+    document.getElementById('live-ind').innerHTML = '<span class="live-badge"><span class="live-dot"></span>En direct</span>';
+  };
+  es.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'connected') return;
+      if (!S.currentWallet || d.wallet_id !== S.currentWallet.id) {
+        // Mise à jour silencieuse du solde du wallet dans la barre
+        if (d.balance !== undefined) {
+          const w = S.wallets.find(x => x.id === d.wallet_id);
+          if (w) { w.balance = d.balance; renderWalletBar(); }
+        }
+        toast('info', '💬 Nouvelle transaction sur un autre portefeuille');
+        return;
+      }
+      if (d.type === 'new_transaction') {
+        S.transactions.unshift(d.transaction);
+        if (S.currentWallet) S.currentWallet.balance = d.balance;
+        refreshCurrentPage();
+        toast('info', `+1 transaction : ${d.transaction.label}`);
+      } else if (d.type === 'delete_transaction') {
+        S.transactions = S.transactions.filter(t => t.id !== d.transaction_id);
+        if (S.currentWallet) S.currentWallet.balance = d.balance;
+        refreshCurrentPage();
+      } else if (d.type === 'update_transaction') {
+        if (S.currentWallet) S.currentWallet.balance = d.balance;
+        loadTransactions(true).then(() => refreshCurrentPage());
+      }
+    } catch(err) {}
+  };
+  es.onerror = () => {
+    S.sseConnected = false;
+    document.getElementById('live-ind').innerHTML = '';
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WALLETS
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadWallets() {
+  const data = await api('GET', '/api/wallets');
+  if (!data) return;
+  S.wallets = data;
+  if (S.wallets.length > 0 && !S.currentWallet) {
+    S.currentWallet = S.wallets[0];
+  } else if (S.currentWallet) {
+    const updated = S.wallets.find(w => w.id === S.currentWallet.id);
+    if (updated) S.currentWallet = updated;
+  }
+  renderWalletBar();
+}
+
+function renderWalletBar() {
+  const c = document.getElementById('wallet-pills');
+  if (S.wallets.length === 0) { c.innerHTML = '<span style="color:var(--muted);font-size:13px">Aucun portefeuille — créez-en un !</span>'; return; }
+  c.innerHTML = S.wallets.map(w => `
+    <div class="wallet-pill ${S.currentWallet?.id === w.id ? 'active' : ''}" onclick="selectWallet(${w.id})">
+      <span class="wp-icon">${w.icon}</span>
+      <span>${w.name}</span>
+      <span class="wp-bal">${fmtAmount(w.balance, w.currency)}</span>
+    </div>
+  `).join('');
+}
+
+async function selectWallet(id) {
+  S.currentWallet = S.wallets.find(w => w.id === id);
+  S.txOffset = 0;
+  renderWalletBar();
+  await loadTransactions(true);
+  refreshCurrentPage();
+}
+
+async function loadTransactions(reset = false) {
+  if (!S.currentWallet) return;
+  if (reset) S.txOffset = 0;
+  const p = new URLSearchParams({ limit: 50, offset: S.txOffset });
+  Object.entries(S.filters).forEach(([k,v]) => { if(v) p.append(k,v); });
+  const data = await api('GET', `/api/wallets/${S.currentWallet.id}/transactions?${p}`);
+  if (!data) return;
+  if (reset) S.transactions = data.transactions;
+  else S.transactions = [...S.transactions, ...data.transactions];
+  S.total = data.total;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORIES
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadCategories() {
+  const data = await api('GET', '/api/categories');
+  if (data) S.categories = data;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+const pageNames = { dashboard:'Tableau de bord', transactions:'Transactions', stats:'Statistiques', wallets:'Portefeuilles', admin:'Administration' };
+async function nav(page) {
+  S.currentPage = page;
+  document.getElementById('topbar-title').textContent = pageNames[page];
+  // Active states
+  ['dashboard','transactions','stats','wallets'].forEach(p => {
+    document.getElementById('nav-' + p).classList.toggle('active', p === page);
+    document.getElementById('bnav-' + p).classList.toggle('active', p === page);
+  });
+  if (document.getElementById('nav-admin')) {
+    document.getElementById('nav-admin').classList.toggle('active', page === 'admin');
+    document.getElementById('bnav-admin').classList.toggle('active', page === 'admin');
+  }
+  document.getElementById('fab').style.display = (page === 'transactions' || page === 'dashboard') ? 'flex' : 'none';
+  if (page === 'admin') { await renderAdmin(); return; }
+  if ((page === 'dashboard' || page === 'transactions') && S.currentWallet) {
+    await loadTransactions(true);
+  }
+  refreshCurrentPage();
+}
+
+function refreshCurrentPage() {
+  const page = S.currentPage;
+  if (page === 'dashboard') renderDashboard();
+  else if (page === 'transactions') renderTransactions();
+  else if (page === 'stats') renderStats();
+  else if (page === 'wallets') renderWalletsPage();
+  else if (page === 'admin') renderAdmin();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const c = document.getElementById('content');
+  const w = S.currentWallet;
+  if (!w) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">👛</div><h3>Aucun portefeuille</h3><p>Créez votre premier portefeuille pour commencer.</p><br><button class="btn btn-primary" onclick="openCreateWallet()">＋ Créer un portefeuille</button></div>`;
+    return;
+  }
+  const txRecent = S.transactions.slice(0, 8);
+  const income = S.transactions.filter(t => t.type==='income').reduce((a,t) => a+t.amount, 0);
+  const expense = S.transactions.filter(t => t.type==='expense').reduce((a,t) => a+t.amount, 0);
+
+  c.innerHTML = `
+    <div class="page-title">🏠 Tableau de bord
+      <span class="live-badge" style="font-size:11px" id="live-badge-db"><span class="live-dot"></span>En direct</span>
+    </div>
+    <!-- Balance card -->
+    <div class="balance-card" style="margin-bottom:20px">
+      <div class="balance-title">Solde total — ${w.name}</div>
+      <div class="balance-amount" id="db-balance">${fmtAmount(w.balance, w.currency)}</div>
+      <div class="balance-sub">
+        <div class="balance-sub-item">⬆ Revenus <span>${fmtAmount(income, w.currency)}</span></div>
+        <div class="balance-sub-item">⬇ Dépenses <span>${fmtAmount(expense, w.currency)}</span></div>
+        <div class="balance-sub-item">📋 <span>${S.total} transactions</span></div>
+      </div>
+    </div>
+    <!-- Quick stats -->
+    <div class="card-grid">
+      <div class="stat-card"><div class="stat-label">Ce mois</div><div class="stat-value income">+${fmtAmount(income, w.currency)}</div><div class="stat-sub">Revenus enregistrés</div></div>
+      <div class="stat-card"><div class="stat-label">Ce mois</div><div class="stat-value expense">-${fmtAmount(expense, w.currency)}</div><div class="stat-sub">Dépenses enregistrées</div></div>
+    </div>
+    <!-- Recent transactions -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">Transactions récentes</div>
+        <div class="section-action" onclick="nav('transactions')">Voir tout →</div>
+      </div>
+      <div class="tx-list" id="tx-recent">
+        ${txRecent.length === 0
+          ? `<div class="empty" style="padding:30px"><div class="empty-icon">📭</div><h3>Aucune transaction</h3><p>Ajoutez votre première transaction !</p></div>`
+          : txRecent.map(txRow).join('')
+        }
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TRANSACTIONS PAGE
+// ═══════════════════════════════════════════════════════════════════════════
+function renderTransactions() {
+  const c = document.getElementById('content');
+  const w = S.currentWallet;
+  if (!w) { c.innerHTML = noWalletMsg(); return; }
+  const cats = S.categories;
+  const expCats = cats.filter(x => x.type === 'expense');
+  const incCats = cats.filter(x => x.type === 'income');
+
+  c.innerHTML = `
+    <div class="page-title">📋 Transactions</div>
+    <!-- Filters -->
+    <div class="filter-bar">
+      <input class="filter-input grow" id="f-q" type="search" placeholder="🔍 Rechercher…" value="${S.filters.q}" oninput="setFilter('q',this.value)">
+      <select class="filter-select" id="f-type" onchange="setFilter('type',this.value)">
+        <option value="">Tout</option>
+        <option value="expense" ${S.filters.type==='expense'?'selected':''}>Dépenses</option>
+        <option value="income" ${S.filters.type==='income'?'selected':''}>Revenus</option>
+      </select>
+      <select class="filter-select" id="f-cat" onchange="setFilter('category_id',this.value)">
+        <option value="">Catégorie</option>
+        <optgroup label="Dépenses">${expCats.map(c=>`<option value="${c.id}" ${S.filters.category_id==c.id?'selected':''}>${c.icon} ${c.name}</option>`).join('')}</optgroup>
+        <optgroup label="Revenus">${incCats.map(c=>`<option value="${c.id}" ${S.filters.category_id==c.id?'selected':''}>${c.icon} ${c.name}</option>`).join('')}</optgroup>
+      </select>
+      <input class="filter-input" id="f-from" type="date" value="${S.filters.from}" onchange="setFilter('from',this.value)" title="Du">
+      <input class="filter-input" id="f-to" type="date" value="${S.filters.to}" onchange="setFilter('to',this.value)" title="Au">
+      <button class="btn btn-secondary btn-sm" onclick="clearFilters()">✕ Reset</button>
+      <button class="btn btn-primary btn-sm" onclick="exportCSV()">⬇ CSV</button>
+    </div>
+    <!-- Stats bar -->
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--muted)">${S.total} transactions • Solde : <strong style="color:${w.balance>=0?'var(--income)':'var(--expense)'}">${fmtAmount(w.balance, w.currency)}</strong></span>
+    </div>
+    <!-- List -->
+    <div class="card">
+      <div class="tx-list" id="tx-full">
+        ${S.transactions.length === 0
+          ? `<div class="empty" style="padding:40px"><div class="empty-icon">📭</div><h3>Aucune transaction</h3><p>Ajoutez votre première transaction avec le bouton ＋</p></div>`
+          : S.transactions.map(txRow).join('')
+        }
+      </div>
+      ${S.transactions.length < S.total ? `<div style="text-align:center;padding:16px"><button class="btn btn-secondary btn-sm" onclick="loadMore()">Charger plus (${S.total - S.transactions.length} restants)</button></div>` : ''}
+    </div>
+  `;
+}
+
+async function setFilter(key, val) {
+  S.filters[key] = val;
+  await loadTransactions(true);
+  renderTransactions();
+}
+async function clearFilters() {
+  S.filters = { type:'', category_id:'', from:'', to:'', q:'' };
+  await loadTransactions(true);
+  renderTransactions();
+}
+async function loadMore() {
+  S.txOffset += 50;
+  await loadTransactions(false);
+  renderTransactions();
+}
+
+function txRow(t) {
+  const sign = t.type === 'income' ? '+' : '-';
+  const dateStr = t.date ? new Date(t.date + 'T00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) : '';
+  return `
+    <div class="tx-item" id="tx-${t.id}">
+      <div class="tx-icon ${t.type}" style="background:${t.category_color}22">${t.category_icon || (t.type==='income'?'💰':'💸')}</div>
+      <div class="tx-info">
+        <div class="tx-label">${esc(t.label)}</div>
+        <div class="tx-meta">${t.category_name || ''} · ${dateStr}${t.author ? ' · par ' + esc(t.author) : ''}</div>
+      </div>
+      <div class="tx-amount ${t.type}">${sign}${fmtAmount(t.amount)}</div>
+      <div class="tx-actions">
+        <button title="Supprimer" onclick="deleteTx(${t.id},event)">🗑</button>
+      </div>
+    </div>
+  `;
+}
+
+async function deleteTx(id, e) {
+  e.stopPropagation();
+  if (!confirm('Supprimer cette transaction ?')) return;
+  const r = await api('DELETE', `/api/transactions/${id}`);
+  if (r?.ok) {
+    S.transactions = S.transactions.filter(t => t.id !== id);
+    if (S.currentWallet) S.currentWallet.balance = r.balance;
+    renderWalletBar();
+    refreshCurrentPage();
+    toast('success', 'Transaction supprimée');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATS PAGE
+// ═══════════════════════════════════════════════════════════════════════════
+async function renderStats() {
+  const c = document.getElementById('content');
+  const w = S.currentWallet;
+  if (!w) { c.innerHTML = noWalletMsg(); return; }
+  c.innerHTML = `
+    <div class="page-title">📊 Statistiques — ${esc(w.name)}</div>
+    <div class="charts-grid">
+      <div class="chart-card"><h3>Évolution mensuelle</h3><div class="chart-wrap"><canvas id="chart-monthly"></canvas></div></div>
+      <div class="chart-card"><h3>Dépenses par catégorie</h3><div class="chart-wrap"><canvas id="chart-expense-cat"></canvas></div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><h3>Revenus par catégorie</h3><div class="chart-wrap"><canvas id="chart-income-cat"></canvas></div></div>
+      <div class="chart-card"><h3>Solde cumulé</h3><div class="chart-wrap"><canvas id="chart-cumul"></canvas></div></div>
+    </div>
+  `;
+  const stats = await api('GET', `/api/wallets/${w.id}/stats`);
+  if (!stats) return;
+
+  const months = stats.monthly || [];
+  const destroyChart = id => { if(S.charts[id]) { S.charts[id].destroy(); } };
+
+  // Monthly bar chart
+  destroyChart('monthly');
+  S.charts['monthly'] = new Chart(document.getElementById('chart-monthly'), {
+    type: 'bar',
+    data: {
+      labels: months.map(m => m.month),
+      datasets: [
+        { label:'Revenus', data: months.map(m => m.income), backgroundColor:'rgba(34,197,94,.7)', borderRadius:6 },
+        { label:'Dépenses', data: months.map(m => m.expense), backgroundColor:'rgba(239,68,68,.7)', borderRadius:6 }
+      ]
+    },
+    options: chartOpts({scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}})
+  });
+
+  // Expense donut
+  const expCat = stats.by_category_expense || [];
+  destroyChart('exp-cat');
+  if (expCat.length > 0) {
+    S.charts['exp-cat'] = new Chart(document.getElementById('chart-expense-cat'), {
+      type: 'doughnut',
+      data: {
+        labels: expCat.map(c => c.icon + ' ' + c.name),
+        datasets: [{ data: expCat.map(c => c.total), backgroundColor: expCat.map(c => c.color), borderWidth:0, hoverOffset:8 }]
+      },
+      options: chartOpts({plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},boxWidth:12}}}})
+    });
+  }
+
+  // Income donut
+  const incCat = stats.by_category_income || [];
+  destroyChart('inc-cat');
+  if (incCat.length > 0) {
+    S.charts['inc-cat'] = new Chart(document.getElementById('chart-income-cat'), {
+      type: 'doughnut',
+      data: {
+        labels: incCat.map(c => c.icon + ' ' + c.name),
+        datasets: [{ data: incCat.map(c => c.total), backgroundColor: incCat.map(c => c.color), borderWidth:0, hoverOffset:8 }]
+      },
+      options: chartOpts({plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:11},boxWidth:12}}}})
+    });
+  }
+
+  // Cumulative balance line
+  let cumul = 0;
+  const cumulData = [...months].map(m => { cumul += m.income - m.expense; return Math.round(cumul*100)/100; });
+  destroyChart('cumul');
+  S.charts['cumul'] = new Chart(document.getElementById('chart-cumul'), {
+    type: 'line',
+    data: {
+      labels: months.map(m => m.month),
+      datasets: [{
+        label:'Solde cumulé', data: cumulData,
+        borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.1)',
+        fill:true, tension:.4, pointRadius:4, pointBackgroundColor:'#6366f1'
+      }]
+    },
+    options: chartOpts({scales:{x:{ticks:{color:'#94a3b8'}},y:{ticks:{color:'#94a3b8'}}}})
+  });
+}
+
+function chartOpts(extra = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color:'#94a3b8' } } },
+    ...extra,
+    plugins: { ...(extra.plugins || {}), legend: { ...(extra.plugins?.legend || {}), labels: { color:'#94a3b8', ...(extra.plugins?.legend?.labels||{}) } } }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WALLETS PAGE
+// ═══════════════════════════════════════════════════════════════════════════
+function renderWalletsPage() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="page-title">👛 Mes portefeuilles
+      <button class="btn btn-primary btn-sm" onclick="openCreateWallet()">＋ Nouveau</button>
+    </div>
+    <div class="wallet-grid">
+      ${S.wallets.length === 0
+        ? `<div class="empty"><div class="empty-icon">👛</div><h3>Aucun portefeuille</h3><p>Créez votre premier portefeuille !</p></div>`
+        : S.wallets.map(walletCard).join('')
+      }
+    </div>
+  `;
+}
+
+function walletCard(w) {
+  return `
+    <div class="wallet-card" onclick="selectWallet(${w.id});nav('dashboard')">
+      <div class="wallet-card-top">
+        <div class="wallet-card-icon" style="background:${w.color}22;color:${w.color}">${w.icon}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${w.is_shared ? '<span class="badge badge-shared">👥 Partagé</span>' : ''}
+          ${w.is_mine ? `<button class="btn btn-secondary btn-sm" onclick="openMembers(${w.id},event)" title="Partager">👥</button>` : ''}
+          ${w.is_mine ? `<button class="btn btn-danger btn-sm" onclick="deleteWallet(${w.id},event)" title="Supprimer">🗑</button>` : ''}
+        </div>
+      </div>
+      <div class="wallet-card-name">${esc(w.name)}</div>
+      ${w.description ? `<div class="wallet-card-desc">${esc(w.description)}</div>` : ''}
+      <div class="wallet-card-balance" style="color:${w.balance>=0?'var(--income)':'var(--expense)'}">${fmtAmount(w.balance, w.currency)}</div>
+      <div class="wallet-card-footer">
+        <span>📋 \${w.tx_count} transactions</span>
+        <span>\${w.iban ? '🏦 <span title="'+esc(w.iban||'')+'" style="font-size:10px;color:var(--muted)">IBAN enregistré</span>' : w.currency}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function deleteWallet(id, e) {
+  e.stopPropagation();
+  const w = S.wallets.find(x => x.id === id);
+  if (!confirm(`Supprimer « ${w?.name} » et toutes ses transactions ?`)) return;
+  const r = await api('DELETE', `/api/wallets/${id}`);
+  if (r?.ok) {
+    S.wallets = S.wallets.filter(x => x.id !== id);
+    if (S.currentWallet?.id === id) S.currentWallet = S.wallets[0] || null;
+    renderWalletBar();
+    renderWalletsPage();
+    toast('success', 'Portefeuille supprimé');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL — Transaction
+// ═══════════════════════════════════════════════════════════════════════════
+function openAddTx() {
+  if (!S.currentWallet) { toast('error','Sélectionnez un portefeuille d\'abord'); return; }
+  S.editTxId = null;
+  document.getElementById('modal-tx-title').textContent = 'Nouvelle transaction';
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-label').value = '';
+  document.getElementById('tx-note').value = '';
+  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+  setType('expense');
+  populateCategorySelect('expense');
+  openModal('modal-tx');
+}
+
+function setType(type) {
+  S.txType = type;
+  document.getElementById('type-expense').className = 'type-btn expense' + (type==='expense'?' active':'');
+  document.getElementById('type-income').className = 'type-btn income' + (type==='income'?' active':'');
+  populateCategorySelect(type);
+}
+
+function populateCategorySelect(type) {
+  const sel = document.getElementById('tx-category');
+  const cats = S.categories.filter(c => c.type === type);
+  sel.innerHTML = `<option value="">— Sans catégorie —</option>` +
+    cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+}
+
+async function saveTx() {
+  const amount = parseFloat(document.getElementById('tx-amount').value);
+  const label  = document.getElementById('tx-label').value.trim();
+  const cat    = document.getElementById('tx-category').value;
+  const date   = document.getElementById('tx-date').value;
+  const note   = document.getElementById('tx-note').value.trim();
+  if (!amount || amount <= 0 || !label) { toast('error','Montant et libellé requis'); return; }
+  const btn = document.getElementById('btn-save-tx');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  const body = { amount, type: S.txType, label, note, date, category_id: cat ? parseInt(cat) : null };
+  const r = await api('POST', `/api/wallets/${S.currentWallet.id}/transactions`, body);
+  btn.disabled = false; btn.textContent = 'Enregistrer';
+  if (r?.id) {
+    closeModal('modal-tx');
+    if (S.currentWallet) S.currentWallet.balance = r.balance;
+    renderWalletBar();
+    await loadTransactions(true);
+    refreshCurrentPage();
+    toast('success', `Transaction ajoutée ✓`);
+  } else {
+    toast('error', 'Erreur lors de l\'enregistrement');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL — Create Wallet
+// ═══════════════════════════════════════════════════════════════════════════
+function openCreateWallet() {
+  document.getElementById('wlt-name').value = '';
+  document.getElementById('wlt-desc').value = '';
+  document.getElementById('wlt-iban').value = '';
+  S.wltIcon = '💳'; S.wltColor = '#6366f1';
+  // Icon picker
+  document.getElementById('icon-picker').querySelectorAll('span').forEach(s => {
+    s.style.cssText = 'font-size:24px;cursor:pointer;padding:4px;border-radius:8px;border:2px solid transparent';
+    s.onclick = () => {
+      S.wltIcon = s.textContent;
+      document.getElementById('icon-picker').querySelectorAll('span').forEach(x => x.style.borderColor='transparent');
+      s.style.borderColor = 'var(--primary)';
+    };
+  });
+  document.getElementById('icon-picker').querySelector('span').style.borderColor = 'var(--primary)';
+  // Color picker
+  document.getElementById('color-picker').querySelectorAll('span').forEach(s => {
+    s.style.cssText = 'font-size:24px;cursor:pointer;padding:4px;border-radius:8px;border:2px solid transparent';
+    s.onclick = () => {
+      S.wltColor = s.dataset.color;
+      document.getElementById('color-picker').querySelectorAll('span').forEach(x => x.style.borderColor='transparent');
+      s.style.borderColor = 'var(--primary)';
+    };
+  });
+  document.getElementById('color-picker').querySelector('span').style.borderColor = 'var(--primary)';
+  openModal('modal-wallet');
+}
+
+async function saveWallet() {
+  const name = document.getElementById('wlt-name').value.trim();
+  if (!name) { toast('error', 'Le nom est requis'); return; }
+  const iban = document.getElementById('wlt-iban').value.trim().replace(/\s/g,'').toUpperCase();
+  if (iban && !/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(iban)) {
+    toast('error', 'Format IBAN invalide'); return;
+  }
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Création…'; }
+  const r = await api('POST', '/api/wallets', {
+    name,
+    description: document.getElementById('wlt-desc').value.trim(),
+    currency: document.getElementById('wlt-currency').value,
+    icon: S.wltIcon,
+    color: S.wltColor,
+    iban
+  });
+  if (btn) { btn.disabled = false; btn.textContent = 'Créer'; }
+  if (r && r.id) {
+    closeModal('modal-wallet');
+    await loadWallets();
+    const w = S.wallets.find(x => x.id === r.id);
+    if (w) { S.currentWallet = w; renderWalletBar(); }
+    refreshCurrentPage();
+    toast('success', `Portefeuille « ${name} » créé ✓`);
+  } else {
+    toast('error', 'Erreur : ' + (r?.error || 'impossible de créer le portefeuille'));
+  }
+}
+
+function formatIban(input) {
+  let v = input.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+  // Groupe par 4
+  input.value = v.replace(/(.{4})/g,'$1 ').trim();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL — Members
+// ═══════════════════════════════════════════════════════════════════════════
+async function openMembers(wid, e) {
+  e.stopPropagation();
+  S.membersWalletId = wid;
+  document.getElementById('member-search').value = '';
+  document.getElementById('member-results').innerHTML = '';
+  await refreshMembers();
+  openModal('modal-members');
+}
+
+async function refreshMembers() {
+  const data = await api('GET', `/api/wallets/${S.membersWalletId}/members`);
+  const c = document.getElementById('members-list');
+  if (!data || data.length === 0) {
+    c.innerHTML = '<p style="color:var(--muted);font-size:13px">Aucun membre pour l\'instant.</p>';
+    return;
+  }
+  c.innerHTML = data.map(m => `
+    <div class="member-chip">
+      <div class="member-avatar">${m.name[0].toUpperCase()}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(m.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(m.email)}</div></div>
+      <button class="btn btn-danger btn-sm" onclick="removeMember(${m.user_id})">Retirer</button>
+    </div>
+  `).join('');
+}
+
+let memberSearchTimeout;
+document.getElementById('member-search').addEventListener('input', function() {
+  clearTimeout(memberSearchTimeout);
+  memberSearchTimeout = setTimeout(() => searchMemberUsers(this.value), 300);
+});
+
+async function searchMemberUsers(q) {
+  if (q.length < 2) { document.getElementById('member-results').innerHTML = ''; return; }
+  const data = await api('GET', `/api/users/search?q=${encodeURIComponent(q)}`);
+  const c = document.getElementById('member-results');
+  if (!data || data.length === 0) { c.innerHTML = '<p style="font-size:12px;color:var(--muted)">Aucun utilisateur trouvé.</p>'; return; }
+  c.innerHTML = data.map(u => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg3);border-radius:8px;margin-bottom:6px">
+      <div class="member-avatar">${u.name[0].toUpperCase()}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(u.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(u.email)}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="addMemberById(${u.id})">Inviter</button>
+    </div>
+  `).join('');
+}
+
+async function addMember() {
+  const search = document.getElementById('member-search').value.trim();
+  if (!search) return;
+  const r = await api('POST', `/api/wallets/${S.membersWalletId}/members`, { identifier: search });
+  if (r?.ok) {
+    document.getElementById('member-search').value = '';
+    document.getElementById('member-results').innerHTML = '';
+    await refreshMembers();
+    await loadWallets();
+    toast('success', 'Membre ajouté ✓');
+  } else {
+    toast('error', r?.error === 'user_not_found' ? 'Utilisateur introuvable' : 'Erreur');
+  }
+}
+async function addMemberById(uid) {
+  const r = await api('POST', `/api/wallets/${S.membersWalletId}/members`, { identifier: String(uid) });
+  if (r?.ok) { await refreshMembers(); await loadWallets(); toast('success', 'Membre ajouté ✓'); }
+}
+async function removeMember(uid) {
+  if (!confirm('Retirer ce membre ?')) return;
+  const r = await api('DELETE', `/api/wallets/${S.membersWalletId}/members/${uid}`);
+  if (r?.ok) { await refreshMembers(); toast('success', 'Membre retiré'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORT CSV
+// ═══════════════════════════════════════════════════════════════════════════
+async function exportCSV() {
+  if (!S.currentWallet) return;
+  const r = await api('GET', `/api/wallets/${S.currentWallet.id}/export/csv`);
+  if (r instanceof Response) {
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const disp = r.headers.get('content-disposition') || '';
+    a.download = disp.match(/filename="(.+)"/)?.[1] || 'transactions.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('success', 'Export CSV téléchargé ✓');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  document.body.style.overflow = '';
+}
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════════════════
+function toast(type, msg) {
+  const c = document.getElementById('toast-container');
+  const icons = { success:'✅', error:'❌', info:'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(el);
+  setTimeout(() => { el.style.animation='slideIn .3s ease reverse'; setTimeout(()=>el.remove(),280); }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function fmtAmount(n, currency='EUR') {
+  const sym = {EUR:'€',USD:'$',GBP:'£',CHF:'₣'}[currency] || currency;
+  const abs = Math.abs(n||0);
+  const fmt = abs.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return fmt + ' ' + sym;
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function noWalletMsg() {
+  return `<div class="empty"><div class="empty-icon">👛</div><h3>Aucun portefeuille sélectionné</h3><p>Créez ou sélectionnez un portefeuille.</p><br><button class="btn btn-primary" onclick="openCreateWallet()">＋ Créer</button></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+
+if (loadAuth()) {
+  bootApp();
+} else {
+  document.getElementById('login-screen').style.display = 'flex';
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════════════════════════════
+async function renderAdmin() {
+  if (S.user.role !== 'admin') { nav('dashboard'); return; }
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="page-title">⚙️ Administration</div>
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:24px;background:var(--bg2);padding:6px;border-radius:12px;border:1px solid var(--border)">
+      <button class="admin-tab active" id="atab-users"   onclick="adminTab('users')">👥 Utilisateurs</button>
+      <button class="admin-tab"        id="atab-app"     onclick="adminTab('app')">🔧 Application</button>
+      <button class="admin-tab"        id="atab-update"  onclick="adminTab('update')">🔄 Mise à jour</button>
+    </div>
+    <div id="admin-panel"></div>
+  `;
+  adminTab('users');
+}
+
+function adminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('atab-' + tab);
+  if (el) el.classList.add('active');
+  if (tab === 'users')  renderAdminUsers();
+  if (tab === 'app')    renderAdminApp();
+  if (tab === 'update') renderAdminUpdate();
+}
+
+// ── Onglet Utilisateurs ─────────────────────────────────────────────────────
+async function renderAdminUsers() {
+  const panel = document.getElementById('admin-panel');
+  panel.innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
+  const users = await api('GET', '/api/admin/users');
+  if (!users) return;
+  panel.innerHTML = `
+    <div class="section-header" style="margin-bottom:16px">
+      <div class="section-title">👥 Utilisateurs (${users.length})</div>
+      <button class="btn btn-primary btn-sm" onclick="openCreateUser()">＋ Créer un compte</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--bg3)">
+            <th style="padding:12px 16px;text-align:left;font-size:12px;color:var(--muted);font-weight:600">Identifiant</th>
+            <th style="padding:12px 16px;text-align:left;font-size:12px;color:var(--muted);font-weight:600">Email</th>
+            <th style="padding:12px 16px;text-align:left;font-size:12px;color:var(--muted);font-weight:600">Rôle</th>
+            <th style="padding:12px 16px;text-align:left;font-size:12px;color:var(--muted);font-weight:600">Créé le</th>
+            <th style="padding:12px 16px;text-align:center;font-size:12px;color:var(--muted);font-weight:600">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => `
+            <tr style="border-top:1px solid var(--border)" id="urow-${u.id}">
+              <td style="padding:12px 16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="user-avatar" style="width:32px;height:32px;font-size:12px">${(u.login||u.email||'?')[0].toUpperCase()}</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:600">${esc(u.login||'')}</div>
+                    <div style="font-size:11px;color:var(--muted)">#${u.id}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="padding:12px 16px;font-size:13px;color:var(--muted)">${esc(u.email||'')}</td>
+              <td style="padding:12px 16px">
+                <select class="filter-select" style="padding:4px 8px;font-size:12px" onchange="changeRole(${u.id},this.value)">
+                  <option value="user"  ${u.role==='user' ?'selected':''}>Utilisateur</option>
+                  <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                </select>
+              </td>
+              <td style="padding:12px 16px;font-size:12px;color:var(--muted)">${u.created_at ? u.created_at.split('T')[0] : '—'}</td>
+              <td style="padding:12px 16px;text-align:center">
+                <div style="display:flex;gap:6px;justify-content:center">
+                  <button class="btn btn-secondary btn-sm" onclick="adminResetPw(${u.id}, '${esc(u.login||u.email||'')}')">🔑 MDP</button>
+                  ${u.id !== S.user.id ? `<button class="btn btn-danger btn-sm" onclick="adminDeleteUser(${u.id})">🗑</button>` : ''}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function changeRole(uid, role) {
+  const r = await api('PUT', `/api/admin/users/${uid}/role`, { role });
+  if (r?.ok) toast('success', 'Rôle mis à jour');
+  else toast('error', 'Erreur mise à jour rôle');
+}
+
+async function adminResetPw(uid, name) {
+  const pw = prompt(`Nouveau mot de passe pour ${name} :`);
+  if (!pw || pw.length < 4) { toast('error', 'Mot de passe trop court (min 4 caractères)'); return; }
+  const r = await api('PUT', `/api/admin/users/${uid}/password`, { password: pw });
+  if (r?.ok) toast('success', `Mot de passe de ${name} réinitialisé ✓`);
+  else toast('error', 'Erreur réinitialisation');
+}
+
+async function adminDeleteUser(uid) {
+  if (!confirm('Supprimer cet utilisateur ? Ses transactions seront conservées.')) return;
+  const r = await api('DELETE', `/api/admin/users/${uid}`);
+  if (r?.ok) { toast('success', 'Utilisateur supprimé'); renderAdminUsers(); }
+  else toast('error', r?.error || 'Erreur suppression');
+}
+
+function openCreateUser() {
+  const login = prompt('Login du nouvel utilisateur :');
+  if (!login?.trim()) return;
+  const email = prompt('Email :');
+  if (!email?.trim()) return;
+  const pw = prompt('Mot de passe (min 4 caractères) :');
+  if (!pw || pw.length < 4) { toast('error','Mot de passe trop court'); return; }
+  api('POST', '/api/admin/users', { login: login.trim(), email: email.trim(), password: pw })
+    .then(r => {
+      if (r?.id) { toast('success', `Compte ${login} créé ✓`); renderAdminUsers(); }
+      else toast('error', r?.error || 'Erreur création');
+    });
+}
+
+// ── Onglet Application ──────────────────────────────────────────────────────
+function renderAdminApp() {
+  const panel = document.getElementById('admin-panel');
+  panel.innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title" style="margin-bottom:16px">🔧 Configuration SMTP</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Hôte SMTP</label>
+          <input id="cfg-smtp-host" class="form-input" type="text" placeholder="smtp.gmail.com" autocomplete="off">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Port</label>
+          <input id="cfg-smtp-port" class="form-input" type="number" placeholder="587" autocomplete="off">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Utilisateur</label>
+          <input id="cfg-smtp-user" class="form-input" type="text" autocomplete="off">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label">Mot de passe</label>
+          <input id="cfg-smtp-pass" class="form-input" type="password" autocomplete="new-password">
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveSmtpConfig()">💾 Enregistrer</button>
+        <button class="btn btn-secondary btn-sm" onclick="testSmtp()">📧 Tester</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-bottom:16px">🗃️ Base de données</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="adminDbStats()">📊 Statistiques DB</button>
+        <button class="btn btn-danger btn-sm" onclick="adminPurgeTx()">🗑 Purger transactions</button>
+      </div>
+      <div id="db-stats" style="margin-top:16px;font-size:13px;color:var(--muted)"></div>
+    </div>
+  `;
+  // Load current config
+  api('GET', '/api/admin/config').then(cfg => {
+    if (!cfg) return;
+    document.getElementById('cfg-smtp-host').value = cfg.smtp_host || '';
+    document.getElementById('cfg-smtp-port').value = cfg.smtp_port || '';
+    document.getElementById('cfg-smtp-user').value = cfg.smtp_user || '';
+  });
+}
+
+async function saveSmtpConfig() {
+  const r = await api('PUT', '/api/admin/config', {
+    smtp_host: document.getElementById('cfg-smtp-host').value,
+    smtp_port: parseInt(document.getElementById('cfg-smtp-port').value) || 587,
+    smtp_user: document.getElementById('cfg-smtp-user').value,
+    smtp_pass: document.getElementById('cfg-smtp-pass').value || null,
+  });
+  if (r?.ok) toast('success', 'Configuration SMTP sauvegardée ✓');
+  else toast('error', 'Erreur sauvegarde config');
+}
+
+async function testSmtp() {
+  toast('info', 'Test SMTP en cours…');
+  const r = await api('POST', '/api/admin/smtp/test');
+  if (r?.ok) toast('success', 'SMTP OK — email de test envoyé ✓');
+  else toast('error', 'SMTP KO : ' + (r?.error || 'connexion impossible'));
+}
+
+async function adminDbStats() {
+  const r = await api('GET', '/api/admin/db/stats');
+  if (!r) return;
+  document.getElementById('db-stats').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:8px">
+      ${Object.entries(r).map(([k,v]) => `
+        <div style="background:var(--bg3);padding:12px;border-radius:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${k}</div>
+          <div style="font-size:20px;font-weight:700;color:var(--text)">${v}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function adminPurgeTx() {
+  const days = prompt('Supprimer les transactions plus vieilles de X jours (laisser vide = annuler) :');
+  if (!days || isNaN(parseInt(days))) return;
+  const r = await api('DELETE', `/api/admin/db/purge?days=${parseInt(days)}`);
+  if (r?.ok) toast('success', `${r.deleted} transactions supprimées`);
+  else toast('error', 'Erreur purge');
+}
+
+// ── Onglet Mise à jour ──────────────────────────────────────────────────────
+async function renderAdminUpdate() {
+  const panel = document.getElementById('admin-panel');
+  const r = await api('GET', '/api/admin/version');
+  const v = r || {};
+  panel.innerHTML = `
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title" style="margin-bottom:16px">🔄 Version & Mise à jour</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+        <div style="background:var(--bg3);padding:16px;border-radius:10px;flex:1;min-width:140px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">VERSION ACTUELLE</div>
+          <div style="font-size:22px;font-weight:800;color:var(--primary)">${v.current || '—'}</div>
+        </div>
+        <div style="background:var(--bg3);padding:16px;border-radius:10px;flex:1;min-width:140px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">DERNIÈRE MISE À JOUR</div>
+          <div style="font-size:14px;font-weight:600">${v.last_updated || '—'}</div>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px">📋 Procédure de mise à jour</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8">
+          <div>1. Arrêtez le serveur (Ctrl+C)</div>
+          <div>2. <code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--primary)">cd "C:\Users\Yoann\Documents\Projet Finance"</code></div>
+          <div>3. <code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--primary)">git pull origin main</code></div>
+          <div>4. <code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--primary)">.venv\Scripts\pip install -r requirements_finance.txt</code></div>
+          <div>5. <code style="background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--primary)">.\run_finance.ps1</code></div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="runMigration()">🗄️ Relancer les migrations</button>
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px">📦 Infos GitHub</div>
+      <div style="font-size:13px;color:var(--muted);line-height:2">
+        <div>Repository : <code style="background:var(--bg3);padding:2px 8px;border-radius:4px;color:var(--text)">${v.git_remote || 'non configuré'}</code></div>
+        <div>Dernier commit : <code style="background:var(--bg3);padding:2px 8px;border-radius:4px;color:var(--text)">${v.git_commit || '—'}</code></div>
+        <div>Branche : <code style="background:var(--bg3);padding:2px 8px;border-radius:4px;color:var(--text)">${v.git_branch || '—'}</code></div>
+      </div>
+    </div>
+  `;
+}
+
+async function runMigration() {
+  toast('info', 'Migration en cours…');
+  const r = await api('POST', '/api/admin/migrate');
+  if (r?.ok) toast('success', 'Migration exécutée ✓');
+  else toast('error', 'Erreur migration : ' + (r?.error || ''));
+}
+
+</script>
+</body>
+</html>
