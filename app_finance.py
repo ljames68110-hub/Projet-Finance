@@ -5,9 +5,10 @@ from jwt_utils import create_token, verify_token
 from finance_routes import finance_bp
 from routes_v2 import v2_bp
 from routes_v3 import v3_bp
+from routes_v4 import v4_bp
 from admin_routes import admin_bp
 from db import ensure_db
-import os, io, pathlib
+import os, pathlib
 from pathlib import Path
 
 def _load_dotenv():
@@ -32,9 +33,9 @@ app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.register_blueprint(finance_bp)
 app.register_blueprint(v2_bp)
 app.register_blueprint(v3_bp)
+app.register_blueprint(v4_bp)
 app.register_blueprint(admin_bp)
 
-# ── ENDPOINT TEMPORAIRE MIGRATION DB ─────────────────────────────────────────
 @app.route('/admin/db/upload', methods=['GET', 'POST'])
 def db_upload():
     secret = request.args.get('secret', '')
@@ -58,7 +59,6 @@ def db_upload():
 </form>
 </body></html>"""
         return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
-    # POST
     if 'db' not in request.files:
         return 'Aucun fichier', 400
     f = request.files['db']
@@ -68,13 +68,11 @@ def db_upload():
     return """<!DOCTYPE html>
 <html><head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;padding:40px;background:#0f172a;color:#f1f5f9;text-align:center">
-<h2 style="color:#22c55e">✅ Base de données migrée avec succès !</h2>
-<p style="color:#94a3b8;margin:20px 0">Toutes tes données sont maintenant sur Railway.</p>
+<h2 style="color:#22c55e">✅ Base de données migrée !</h2>
 <a href="/" style="background:#6366f1;color:#fff;padding:14px 28px;border-radius:10px;
    text-decoration:none;font-weight:700;font-size:16px">🚀 Ouvrir FinanceApp</a>
 </body></html>""", 200, {'Content-Type': 'text/html; charset=utf-8'}
 
-# ── SPA ───────────────────────────────────────────────────────────────────────
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_spa(path):
@@ -107,7 +105,6 @@ def protected():
         return jsonify({'status': 'error', 'message': 'invalid token'}), 401
     return jsonify({'status': 'ok', 'payload': payload}), 200
 
-# Point d'entrée local
 if __name__ == '__main__':
     ensure_db()
     host = os.getenv('HOST', '0.0.0.0')

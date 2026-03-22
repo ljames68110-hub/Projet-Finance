@@ -101,12 +101,15 @@ def api_list_wallets():
     try:
         cur.execute("""
             SELECT w.id, w.name, w.description, w.currency, w.owner_id, w.is_shared,
-                   w.color, w.icon, w.created_at, COALESCE(u.name, u.login, u.email, '') AS owner_name, w.iban,
+                   w.color, w.icon, w.created_at,
+                   COALESCE(u.name, u.login, u.email, '') AS owner_name,
+                   COALESCE(w.iban,'') as iban,
                    COALESCE((
                        SELECT SUM(CASE WHEN t.type='income' THEN t.amount ELSE -t.amount END)
                        FROM transactions t WHERE t.wallet_id = w.id
                    ), 0) AS balance,
-                   COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.wallet_id=w.id),0) AS tx_count
+                   COALESCE((SELECT COUNT(*) FROM transactions t WHERE t.wallet_id=w.id),0) AS tx_count,
+                   COALESCE(w.wallet_type,'personal') as wallet_type
             FROM wallets w
             JOIN users u ON u.id = w.owner_id
             WHERE w.owner_id = ?
@@ -119,7 +122,8 @@ def api_list_wallets():
             'owner_id': r[4], 'is_shared': bool(r[5]), 'color': r[6], 'icon': r[7],
             'created_at': r[8], 'owner_name': r[9], 'iban': r[10] or '',
             'balance': round(float(r[11] or 0), 2), 'tx_count': r[12],
-            'is_mine': r[4] == uid
+            'is_mine': r[4] == uid,
+            'wallet_type': r[13] or 'personal'
         } for r in rows])
     finally:
         cur.close(); conn.close()
