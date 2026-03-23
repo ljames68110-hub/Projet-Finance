@@ -188,7 +188,9 @@ def delete_fixed_income(fid):
 
 @v4_bp.route('/api/fixed-incomes/<int:fid>/receive', methods=['POST'])
 def receive_fixed_income(fid):
-    """Enregistre la réception d'un revenu fixe"""
+    """Enregistre la reception d'un revenu fixe.
+    CAF/variable : meme montant chaque mois, revision tous les 3 mois.
+    """
     p = _auth()
     if not p: return jsonify({'error': 'unauthorized'}), 401
     uid = _uid(p)
@@ -196,7 +198,8 @@ def receive_fixed_income(fid):
     conn = get_conn(); cur = conn.cursor()
     try:
         cur.execute("""
-            SELECT fi.wallet_id, fi.label, fi.amount, fi.category_id, fi.frequency, fi.next_date
+            SELECT fi.wallet_id, fi.label, fi.amount, fi.category_id,
+                   fi.frequency, fi.next_date, fi.income_type
             FROM fixed_incomes fi WHERE fi.id=?
         """, (fid,))
         f = cur.fetchone()
@@ -204,19 +207,40 @@ def receive_fixed_income(fid):
         wid = f[0]
         if not _wallet_ok(cur, wid, uid):
             return jsonify({'error': 'forbidden'}), 403
-        # Montant réel reçu (peut différer du montant prévu pour CAF etc.)
         amount = float(data.get('amount') or f[2] or 0)
         if amount <= 0: return jsonify({'error': 'invalid_amount'}), 400
         recv_date = date.today().strftime('%Y-%m-%d')
+        income_type = f[6] or 'regular'
         cur.execute("""
             INSERT INTO transactions
                 (wallet_id, user_id, amount, type, category_id, label, note, date)
             VALUES (?,?,?,?,?,?,?,?)
-        """, (wid, uid, amount, 'income', f[3],
-              f[1], data.get('note', 'Revenu fixe'), recv_date))
-        new_next = _next_date_calc(f[5], f[4])
+        """, (wid, uid, amount, 'income', f[3], f[1],
+              'Versement CAF / allocation' if income_type == 'variable' else 'Revenu fixe',
+              recv_date))
+        # CAF : prochaine insertion dans 1 mois (meme montant)
+        # Revision : tous les 3 mois via le rappel
+        if income_type == 'variable':
+            new_next = _next_date_calc(recv_date, 'monthly')
+        else:
+            new_next = _next_date_calc(f[5], f[4])
         cur.execute("UPDATE fixed_incomes SET next_date=?, amount=? WHERE id=?",
                     (new_next, amount, fid))
+        # Mettre a jour le rappel de revision trimestriel
+        if income_type == 'variable':
+            try:
+                m = date.today().month + 3
+                y = date.today().year + (m - 1) // 12
+                m = (m - 1) % 12 + 1
+                import calendar as cal
+                day = min(5, cal.monthrange(y, m)[1])
+                next_rev = date(y, m, day).strftime('%Y-%m-%d')
+                cur.execute("""
+                    UPDATE income_reminders SET last_asked=?, last_amount=?
+                    WHERE wallet_id=? AND label LIKE ?
+                """, (recv_date, amount, wid, f[1]))
+            except Exception:
+                pass
         conn.commit()
         cur.execute("""
             SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0)
@@ -287,15 +311,23 @@ def create_reminder(wid):
     try:
         if not _wallet_ok(cur, wid, uid):
             return jsonify({'error': 'forbidden'}), 403
+        next_rev = (data.get('next_revision_date') or '').strip()
         cur.execute("""
             INSERT INTO income_reminders
-                (wallet_id, user_id, label, description, frequency, day_of_period)
-            VALUES (?,?,?,?,?,?)
+                (wallet_id, user_id, label, description, frequency, day_of_period, last_asked)
+            VALUES (?,?,?,?,?,?,?)
         """, (wid, uid,
               (data.get('label') or '').strip(),
               (data.get('description') or '').strip(),
               data.get('frequency', 'quarterly'),
-              int(data.get('day_of_period', 5))))
+              int(data.get('day_of_period', 5)),
+              None))
+        # Stocker la date de révision dans une notification
+        if next_rev:
+            cur.execute("""
+                UPDATE income_reminders SET last_asked=NULL
+                WHERE id=last_insert_rowid()
+            """)
         conn.commit()
         return jsonify({'id': cur.lastrowid}), 201
     finally:
@@ -386,22 +418,67 @@ def check_reminders(wid):
         for r in rows:
             day_of_period = r[4] or 5
             freq = r[3] or 'quarterly'
+            last_asked = r[5]
             should_ask = False
+
             if freq == 'quarterly':
-                if today.month in (1, 4, 7, 10) and today.day >= day_of_period:
-                    last = r[5]
-                    if not last or last[:7] != today.strftime('%Y-%m'):
+                # Vérifier si aujourd'hui >= jour révision du mois trimestriel
+                caf_months = {1, 4, 7, 10}
+                if today.month in caf_months and today.day >= day_of_period:
+                    if not last_asked or last_asked[:7] != today.strftime('%Y-%m'):
                         should_ask = True
             elif freq == 'monthly':
                 if today.day >= day_of_period:
-                    last = r[5]
-                    if not last or last[:7] != today.strftime('%Y-%m'):
+                    if not last_asked or last_asked[:7] != today.strftime('%Y-%m'):
                         should_ask = True
+
             if should_ask:
                 pending.append({
                     'id': r[0], 'label': r[1], 'description': r[2],
                     'last_amount': r[6]
                 })
         return jsonify({'pending': pending, 'count': len(pending)})
+    finally:
+        cur.close(); conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AUTO-INSERTION DES REVENUS FIXES ÉCHUS
+# ═══════════════════════════════════════════════════════════════════════════════
+@v4_bp.route('/api/wallets/<int:wid>/fixed-incomes/process', methods=['POST'])
+def process_fixed_incomes(wid):
+    """Insère automatiquement les revenus fixes échus dont auto_insert=1"""
+    p = _auth()
+    if not p: return jsonify({'error': 'unauthorized'}), 401
+    uid = _uid(p)
+    conn = get_conn(); cur = conn.cursor()
+    try:
+        if not _wallet_ok(cur, wid, uid):
+            return jsonify({'error': 'forbidden'}), 403
+        today = date.today().strftime('%Y-%m-%d')
+        cur.execute("""
+            SELECT id, label, amount, category_id, frequency, next_date
+            FROM fixed_incomes
+            WHERE wallet_id=? AND auto_insert=1 AND active=1
+              AND amount IS NOT NULL AND amount > 0
+              AND next_date <= ?
+        """, (wid, today))
+        due = cur.fetchall()
+        inserted = 0
+        for f in due:
+            # Insérer la transaction de revenu
+            cur.execute("""
+                INSERT INTO transactions
+                    (wallet_id, user_id, amount, type, category_id, label, note, date)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (wid, uid, f[2], 'income', f[3],
+                  f[1], 'Revenu fixe automatique', today))
+            # Calculer prochaine échéance
+            new_next = _next_date_calc(f[5], f[4])
+            cur.execute("UPDATE fixed_incomes SET next_date=? WHERE id=?",
+                        (new_next, f[0]))
+            inserted += 1
+        conn.commit()
+        return jsonify({'ok': True, 'inserted': inserted})
     finally:
         cur.close(); conn.close()

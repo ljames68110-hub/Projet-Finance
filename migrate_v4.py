@@ -58,6 +58,13 @@ cur.execute("CREATE INDEX IF NOT EXISTS idx_ir_active   ON income_reminders(acti
 # Ces rappels sont créés globalement, pas par utilisateur
 # Chaque user peut en créer dans ses portefeuilles
 
+# Colonne next_revision_date si absente
+try:
+    cur.execute("ALTER TABLE income_reminders ADD COLUMN next_revision_date TEXT")
+    print("  income_reminders.next_revision_date ajoutée")
+except Exception:
+    pass
+
 conn.commit()
 conn.close()
 print("✅ Migration v4 terminée")

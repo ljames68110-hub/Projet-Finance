@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#6366f1">
+<meta name="theme-color" content="#4fc3f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FinanceApp">
@@ -999,30 +999,32 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
     </div>
     <div id="income-variable-block" style="display:none">
       <div class="form-row">
-        <label class="form-label">📅 Prochaine révision / versement CAF</label>
+        <label class="form-label">📅 Date de la prochaine révision CAF</label>
         <input id="income-next-revision" class="form-input" type="date">
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">
-          À partir de cette date, l'app calculera automatiquement toutes les échéances tous les 3 mois
-          et te demandera le montant reçu à chaque fois.
-        </div>
-      </div>
-      <div class="form-row">
-        <div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:12px">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-            <input type="checkbox" id="income-reminder" style="width:18px;height:18px" checked>
-            <div>
-              <div style="font-size:13px;font-weight:600">🔔 Rappel automatique</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">
-                L'app te demandera le montant reçu le 5 de chaque mois de versement
-              </div>
-            </div>
-          </label>
+        <div style="font-size:11px;color:var(--income);margin-top:6px;line-height:1.6">
+          ✓ Entre chaque révision : le même montant est inséré automatiquement chaque mois<br>
+          ✓ Le jour de la révision : l'app te demande le nouveau montant<br>
+          ✓ Prochaines révisions calculées automatiquement tous les 3 mois
         </div>
       </div>
     </div>
     <div class="form-row">
       <label class="form-label">Note</label>
       <input id="income-note" class="form-input" type="text" placeholder="Optionnel" autocomplete="off">
+    </div>
+    <div class="form-row" id="income-auto-row">
+      <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:12px">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="checkbox" id="income-auto-insert" style="width:18px;height:18px">
+          <div>
+            <div style="font-size:13px;font-weight:600">🤖 Insertion automatique</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              Insère automatiquement ce revenu à chaque échéance
+              <br><span style="color:var(--income)">✓ CAF : même montant inséré chaque mois · rappel tous les 3 mois pour mise à jour</span>
+            </div>
+          </div>
+        </label>
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-income')">Annuler</button>
@@ -1276,7 +1278,7 @@ async function nav(page) {
   if ((page === 'dashboard' || page === 'transactions') && S.currentWallet) {
     await loadTransactions(true);
   }
-  if (page === 'dashboard') { await loadFixed(); }
+  if (page === 'dashboard') { await loadFixed(); await loadFixedIncomes(); }
   if (page === 'debts'  && S.currentWallet) { await loadDebts(); }
   if (page === 'fixed'  && S.currentWallet) { await loadFixed(); }
   if (page === 'income' && S.currentWallet) { await loadFixedIncomes(); }
@@ -1419,6 +1421,54 @@ function renderDashboard() {
       ${(overdueFixed.length + soonFixed.length) > 5
         ? `<div style="text-align:center;padding:10px;font-size:12px;color:var(--muted)">${overdueFixed.length+soonFixed.length-5} autres échéances...</div>`
         : ''}
+    </div>` : ''}
+
+    <!-- Revenus fixes imminents -->
+    ${(() => {
+      const incomesToday = new Date().toISOString().split('T')[0];
+      const in7days = new Date(Date.now()+7*86400000).toISOString().split('T')[0];
+      const soonIncomes = (S.fixedIncomes||[]).filter(f => f.active && f.next_date >= incomesToday && f.next_date <= in7days);
+      const overdueIncomes = (S.fixedIncomes||[]).filter(f => f.active && f.next_date < incomesToday);
+      const totalSoonIncome = [...soonIncomes,...overdueIncomes].reduce((a,f)=>a+(f.amount||0),0);
+      if (!soonIncomes.length && !overdueIncomes.length) return '';
+      const rows = [...overdueIncomes,...soonIncomes].slice(0,4).map(f => {
+        const d = f.days_left;
+        const dayLabel = d < 0 ? '<span style="color:var(--muted);font-size:11px">À recevoir</span>'
+          : d === 0 ? '<span style="color:var(--income);font-size:11px;font-weight:700">Aujourd\'hui !</span>'
+          : '<span style="color:var(--income);font-size:11px">Dans '+d+'j</span>';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'
+          +'<div style="font-size:18px">'+(f.cat_icon||'💰')+'</div>'
+          +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(f.label)+'</div>'
+          +'<div style="display:flex;gap:8px;margin-top:2px">'+dayLabel
+          +(f.wallet_name?'<span style="font-size:10px;color:var(--muted)">'+(f.wallet_icon||'')+" "+esc(f.wallet_name)+'</span>':'')
+          +'</div></div>'
+          +'<div style="font-size:14px;font-weight:800;color:var(--income)">'+(f.amount?fmtAmount(f.amount):'Variable')+'</div>'
+          +'<button class="btn btn-primary btn-sm" style="padding:4px 8px;font-size:11px" onclick="receiveIncome('+f.id+')">✓</button>'
+          +'</div>';
+      }).join('');
+      return '<div class="card" style="margin-bottom:20px;border-color:rgba(34,197,94,.3)">'
+        +'<div class="section-header">'
+        +'<div class="section-title">💰 Revenus à recevoir</div>'
+        +'<div class="section-action" onclick="nav(\'income\')">Tous →</div>'
+        +'</div>'+rows
+        +(totalSoonIncome>0?'<div style="text-align:right;padding:10px 0 0;font-size:13px;font-weight:700;color:var(--income)">Total attendu : '+fmtAmount(totalSoonIncome)+'</div>':'')
+        +'</div>';
+    })()}
+
+    <!-- Rappels CAF en attente -->
+    ${S.reminders?.length > 0 ? `
+    <div class="card" style="margin-bottom:20px;border-color:rgba(99,102,241,.4)">
+      <div class="section-header">
+        <div class="section-title">🔔 Saisie requise</div>
+        <button class="btn btn-primary btn-sm" onclick="showCAFReminders()">Saisir maintenant</button>
+      </div>
+      ${S.reminders.slice(0,3).map(r => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:18px">💬</div>
+          <div style="flex:1;font-size:13px;font-weight:600">${esc(r.label)}</div>
+          ${r.last_amount ? `<div style="font-size:12px;color:var(--muted)">${fmtAmount(r.last_amount)}</div>` : ''}
+        </div>
+      `).join('')}
     </div>` : ''}
 
     <!-- Transactions récentes -->
@@ -3420,6 +3470,8 @@ async function loadFixedIncomes() {
   S.reminders    = [];
   for (const w of S.wallets) {
     try {
+      // Auto-insérer les revenus fixes échus
+      await api('POST', `/api/wallets/${w.id}/fixed-incomes/process`);
       const data = await api('GET', `/api/wallets/${w.id}/fixed-incomes`);
       if (data?.length) {
         data.forEach(f => { f.wallet_name=w.name; f.wallet_icon=w.icon; f.wallet_id=w.id; });
@@ -3547,6 +3599,7 @@ function incomeRow(f) {
           <span>${FREQ_LABELS[f.frequency]||f.frequency}</span>
           ${daysLabel}
           ${f.wallet_name?`<span style="color:var(--primary)">${f.wallet_icon||''} ${esc(f.wallet_name)}</span>`:''}
+          ${f.auto_insert?'<span style="color:var(--income);font-size:10px">🤖 Auto</span>':''}
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -3589,6 +3642,9 @@ function onIncomeTypeChange() {
   } else {
     if (freq) freq.value = 'monthly';
   }
+  // Toujours montrer auto_insert (CAF = même montant 3 mois)
+  const autoRow = document.getElementById('income-auto-row');
+  if (autoRow) autoRow.style.display = 'block';
 }
 
 function openCreateIncome() {
@@ -3602,6 +3658,9 @@ function openCreateIncome() {
   if (document.getElementById('income-reminder')) document.getElementById('income-reminder').checked = false;
   const varBlock = document.getElementById('income-variable-block');
   if (varBlock) varBlock.style.display = 'none';
+  if (document.getElementById('income-auto-insert')) document.getElementById('income-auto-insert').checked = false;
+  const autoRow = document.getElementById('income-auto-row');
+  if (autoRow) autoRow.style.display = 'block';
   const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()+1);
   document.getElementById('income-next').value = d.toISOString().split('T')[0];
   // Wallet select
@@ -3633,6 +3692,11 @@ function openEditIncome(f) {
     `<option value="${w.id}" ${w.id===f.wallet_id?'selected':''}>${w.icon} ${w.name}</option>`
   ).join('');
   document.getElementById('btn-save-income').textContent = 'Mettre à jour';
+  if (document.getElementById('income-auto-insert')) {
+    document.getElementById('income-auto-insert').checked = f.auto_insert;
+  }
+  const autoRowEdit = document.getElementById('income-auto-row');
+  if (autoRowEdit) autoRowEdit.style.display = 'block';
   openModal('modal-income');
 }
 
@@ -3645,34 +3709,46 @@ async function saveFixedIncome() {
   const selectedWid = parseInt(document.getElementById('income-wallet')?.value) || S.currentWallet?.id;
   const incomeType  = document.getElementById('income-type').value;
   const wantReminder= document.getElementById('income-reminder')?.checked && incomeType === 'variable';
-  // Pour les revenus variables : utiliser la date de prochaine révision
+  // Pour variable : next_date = prochaine révision (1ère insertion)
+  // Pour les autres : next_date normal
   let nextDate = document.getElementById('income-next').value;
   if (incomeType === 'variable') {
     const revDate = document.getElementById('income-next-revision')?.value;
     if (revDate) nextDate = revDate;
+    else nextDate = document.getElementById('income-next').value;
   }
+  // Pour variable (CAF) : toujours auto_insert=1
+  const autoInsert = incomeType === 'variable' ? 1 :
+    (document.getElementById('income-auto-insert')?.checked ? 1 : 0);
+
   const body = {
     label, income_type: incomeType,
     amount: amount ? parseFloat(amount) : null,
-    frequency:  incomeType === 'variable' ? 'quarterly' : document.getElementById('income-freq').value,
+    frequency:  'monthly', // toujours mensuel pour l'insertion
     next_date:  nextDate,
     note:       document.getElementById('income-note').value.trim(),
-    auto_insert: 0,
+    auto_insert: autoInsert,
   };
+
   let r;
   if (_editIncomeId) {
     r = await api('PUT', `/api/fixed-incomes/${_editIncomeId}`, body);
   } else {
     r = await api('POST', `/api/wallets/${selectedWid}/fixed-incomes`, body);
-    // Créer automatiquement le rappel pour les revenus variables
-    if (r?.id && (wantReminder || incomeType === 'variable')) {
-      await api('POST', `/api/wallets/${selectedWid}/reminders`, {
-        label: label,
-        description: `Saisir le montant reçu pour : ${label}`,
-        frequency: 'quarterly',
-        day_of_period: 5
-      });
-      toast('info', '🔔 Rappel trimestriel activé — l\'app te préviendra à chaque versement');
+    // Pour CAF/variable : créer le rappel de révision trimestrielle
+    if (r?.id && incomeType === 'variable') {
+      const revDate = document.getElementById('income-next-revision')?.value;
+      if (revDate) {
+        // Enregistrer la date de révision comme rappel
+        await api('POST', `/api/wallets/${selectedWid}/reminders`, {
+          label: label,
+          description: 'Révision trimestrielle — saisir le nouveau montant',
+          frequency: 'quarterly',
+          day_of_period: new Date(revDate).getDate() || 5,
+          next_revision_date: revDate
+        });
+      }
+      toast('info', '🔔 Révisions trimestrielles programmées automatiquement');
     }
   }
   btn.disabled = false;
@@ -3688,9 +3764,18 @@ async function receiveIncome(id) {
   const f = S.fixedIncomes.find(x => x.id === id);
   const label = f?.label || 'revenu';
   const lastAmount = f?.amount;
-  const input = lastAmount
-    ? prompt(`Montant reçu pour « ${label} » :\n(Dernier montant : ${lastAmount}€)`, lastAmount)
-    : prompt(`Montant reçu pour « ${label} » (€) :`);
+  const isCaf = f?.income_type === 'variable';
+  let promptMsg;
+  if (isCaf) {
+    promptMsg = lastAmount
+      ? `Nouveau montant ${label} pour les 3 prochains mois :\n(Dernier montant : ${lastAmount}€)`
+      : `Montant ${label} pour les 3 prochains mois (€) :`;
+  } else {
+    promptMsg = lastAmount
+      ? `Montant reçu pour « ${label} » :\n(Habituel : ${lastAmount}€)`
+      : `Montant reçu pour « ${label} » (€) :`;
+  }
+  const input = prompt(promptMsg, lastAmount || '');
   if (input === null) return;
   const amount = parseFloat(input);
   if (!amount || amount <= 0) { toast('error','Montant invalide'); return; }
@@ -3699,8 +3784,13 @@ async function receiveIncome(id) {
     if (S.currentWallet) S.currentWallet.balance = r.balance;
     renderWalletBar();
     await loadFixedIncomes();
-    renderIncome();
-    toast('success', `${fmtAmount(amount)} enregistré ! Prochain : ${r.next_date}`);
+    if (S.currentPage === 'income') renderIncome();
+    else refreshCurrentPage();
+    if (isCaf) {
+      toast('success', `${fmtAmount(amount)}/mois enregistré pour 3 mois ✓ · Prochaine révision : ${r.next_date}`);
+    } else {
+      toast('success', `${fmtAmount(amount)} enregistré ✓ · Prochain : ${r.next_date}`);
+    }
   } else toast('error', r?.error || 'Erreur');
 }
 

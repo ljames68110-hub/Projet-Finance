@@ -1,0 +1,26 @@
+{
+  "name": "FinanceApp",
+  "short_name": "Finance",
+  "description": "Gestion de comptes personnels multi-portefeuilles",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a3a5c",
+  "theme_color": "#4fc3f7",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%231a3a5c'/%3E%3Cpolygon points='96,28 152,76 152,160 40,160 40,76' fill='none' stroke='%234fc3f7' stroke-width='6' stroke-linejoin='round'/%3E%3Crect x='72' y='110' width='48' height='50' rx='5' fill='%234fc3f7' opacity='0.2'/%3E%3Cline x1='60' y1='90' x2='132' y2='90' stroke='%234fc3f7' stroke-width='3' stroke-linecap='round' opacity='0.6'/%3E%3Cline x1='60' y1='104' x2='112' y2='104' stroke='%234fc3f7' stroke-width='3' stroke-linecap='round' opacity='0.4'/%3E%3Ccircle cx='138' cy='140' r='28' fill='%230d47a1'/%3E%3Ctext x='138' y='149' font-family='Arial' font-size='24' font-weight='700' fill='%234fc3f7' text-anchor='middle'%3E%E2%82%AC%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%231a3a5c'/%3E%3Cpolygon points='256,60 400,180 400,420 112,420 112,180' fill='none' stroke='%234fc3f7' stroke-width='14' stroke-linejoin='round'/%3E%3Crect x='188' y='290' width='136' height='130' rx='12' fill='%234fc3f7' opacity='0.2'/%3E%3Cline x1='155' y1='230' x2='357' y2='230' stroke='%234fc3f7' stroke-width='8' stroke-linecap='round' opacity='0.6'/%3E%3Cline x1='155' y1='265' x2='295' y2='265' stroke='%234fc3f7' stroke-width='8' stroke-linecap='round' opacity='0.4'/%3E%3Ccircle cx='366' cy='366' r='72' fill='%230d47a1'/%3E%3Ctext x='366' y='390' font-family='Arial' font-size='60' font-weight='700' fill='%234fc3f7' text-anchor='middle'%3E%E2%82%AC%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": [
+    "finance",
+    "productivity"
+  ]
+}
