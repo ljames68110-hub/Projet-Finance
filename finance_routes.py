@@ -143,16 +143,51 @@ def api_create_wallet():
     cur = conn.cursor()
     try:
         iban = (data.get('iban') or '').strip().upper().replace(' ','')
+        wallet_type = data.get('wallet_type', 'personal')
+        icon_map = {'personal':'💳','savings':'🏦','crypto':'₿','investment':'📈','cash':'💵','joint':'👫'}
+        icon = data.get('icon') or icon_map.get(wallet_type, '💳')
         cur.execute("""
-            INSERT INTO wallets (name, description, currency, owner_id, is_shared, color, icon, iban)
-            VALUES (?,?,?,?,?,?,?,?)
+            INSERT INTO wallets (name, description, currency, owner_id, is_shared,
+                                 color, icon, iban, wallet_type)
+            VALUES (?,?,?,?,?,?,?,?,?)
         """, (name, data.get('description',''), data.get('currency','EUR'),
-              uid, 0, data.get('color','#6366f1'), data.get('icon','💳'), iban))
+              uid, 1 if wallet_type=='joint' else 0,
+              data.get('color','#6366f1'), icon, iban, wallet_type))
         conn.commit()
         wid = cur.lastrowid
         if not wid:
             return jsonify({'error': 'insert_failed'}), 500
-        return jsonify({'id': wid, 'name': name}), 201
+        # Si compte joint : ajouter le partenaire automatiquement
+        partner = (data.get('partner') or '').strip()
+        if wallet_type == 'joint' and partner:
+            cur.execute("""
+                SELECT id FROM users
+                WHERE email=? OR login=? OR name=?
+                LIMIT 1
+            """, (partner, partner, partner))
+            p_row = cur.fetchone()
+            if p_row and p_row[0] != uid:
+                cur.execute("""
+                    INSERT OR IGNORE INTO wallet_members (wallet_id, user_id, can_write)
+                    VALUES (?,?,1)
+                """, (wid, p_row[0]))
+                # Notification au partenaire
+                try:
+                    cur.execute("""
+                        SELECT COALESCE(display_name,name,login,email,'') FROM users WHERE id=?
+                    """, (uid,))
+                    creator = cur.fetchone()
+                    creator_name = creator[0] if creator else 'Votre partenaire'
+                    cur.execute("""
+                        INSERT INTO notifications (user_id, type, title, body)
+                        VALUES (?,?,?,?)
+                    """, (p_row[0], 'joint_wallet',
+                          f'Compte joint ajouté',
+                          f'{creator_name} vous a ajouté au compte joint « {name} »'))
+                except Exception:
+                    pass
+                conn.commit()
+        return jsonify({'id': wid, 'name': name, 'wallet_type': wallet_type}), 201
     finally:
         cur.close(); conn.close()
 

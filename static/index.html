@@ -330,6 +330,27 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
   #wallet-bar{gap:8px;padding:8px 12px}
   .wallet-pill{padding:6px 10px;font-size:12px}
 }
+
+/* ── DASHBOARD STYLE PREMIUM ─────────────────────────────────────────── */
+.db-premium{background:linear-gradient(135deg,#0d1b3e 0%,#1a2a5e 50%,#0d1b3e 100%);border-radius:var(--radius);padding:24px;margin-bottom:20px;border:1px solid rgba(99,130,255,.3);position:relative;overflow:hidden}
+.db-premium::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(99,130,255,.03) 40px,rgba(99,130,255,.03) 80px);pointer-events:none}
+.db-premium-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:relative}
+.db-premium-title{font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px}
+.db-premium-sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:2px}
+.db-premium-version{font-size:10px;color:rgba(255,255,255,.4);background:rgba(255,255,255,.1);padding:3px 8px;border-radius:100px}
+.db-user-badge{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);padding:8px 14px;border-radius:100px}
+.db-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative}
+.db-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:#fff;cursor:pointer;transition:all .2s;text-align:center}
+.db-btn:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4);transform:translateY(-1px)}
+.db-btn.primary{background:rgba(99,130,255,.25);border-color:rgba(99,130,255,.6)}
+.db-btn.primary:hover{background:rgba(99,130,255,.4)}
+.db-btn.danger{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.5)}
+.db-btn.danger:hover{background:rgba(239,68,68,.35)}
+.db-btn.success{background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.5)}
+.db-btn.success:hover{background:rgba(34,197,94,.35)}
+.db-btn .db-btn-icon{font-size:16px}
+.db-divider{height:1px;background:rgba(255,255,255,.1);margin:8px 0}
+@media(max-width:768px){.db-btn-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -414,6 +435,7 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
         <button class="mb-btn" onclick="toggleMenu('menu-ops')">💳 Opérations <span style="font-size:10px">▾</span></button>
         <div class="mb-dropdown" id="menu-ops">
           <button class="mb-action" onclick="closeMenus();openAddTx()"><span class="ma-icon">＋</span> Ajouter une transaction</button>
+          <button class="mb-action" onclick="closeMenus();openTransfer()"><span class="ma-icon">↔</span> Virement entre comptes</button>
           <button class="mb-action" onclick="closeMenus();nav('transactions')"><span class="ma-icon">📋</span> Voir toutes les transactions</button>
           <div class="mb-sep"></div>
           <button class="mb-action" onclick="closeMenus();exportCSV()"><span class="ma-icon">⬇</span> Exporter en CSV</button>
@@ -1047,6 +1069,47 @@ body.theme-nord  {--bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;--pr
   </div>
 </div>
 
+<!-- Modal Virement -->
+<div class="modal-overlay" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-title">
+      <span>↔ Virement entre comptes</span>
+      <button class="modal-close" onclick="closeModal('modal-transfer')">✕</button>
+    </div>
+    <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;color:var(--income)">
+      💡 Un virement crée automatiquement une dépense sur le compte source et un revenu sur le compte destination.
+    </div>
+    <div class="form-row">
+      <label class="form-label">Compte source (débit)</label>
+      <select id="transfer-from" class="form-select" onchange="onTransferFromChange()"></select>
+      <div id="transfer-from-balance" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <div style="text-align:center;font-size:24px;margin:4px 0;color:var(--primary)">↓</div>
+    <div class="form-row">
+      <label class="form-label">Compte destination (crédit)</label>
+      <select id="transfer-to" class="form-select" onchange="onTransferToChange()"></select>
+      <div id="transfer-to-balance" style="font-size:12px;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Montant (€)</label>
+      <input id="transfer-amount" class="form-input" type="number" step="0.01" min="0.01" placeholder="0.00">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Libellé</label>
+      <input id="transfer-label" class="form-input" type="text" placeholder="Ex: Épargne du mois, Remboursement...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date</label>
+      <input id="transfer-date" class="form-input" type="date">
+    </div>
+    <div id="transfer-warning" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px;font-size:12px;color:var(--expense);margin-bottom:12px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-transfer')">Annuler</button>
+      <button class="btn btn-primary" onclick="doTransfer()" id="btn-transfer">↔ Effectuer le virement</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div id="toast-container"></div>
 
@@ -1314,6 +1377,10 @@ function renderDashboard() {
   const txRecent = S.transactions.slice(0, 8);
   const income  = S.transactions.filter(t => t.type==='income').reduce((a,t)  => a+t.amount, 0);
   const expense = S.transactions.filter(t => t.type==='expense').reduce((a,t) => a+t.amount, 0);
+  const userName = S.user?.name || S.user?.login || S.user?.email || '';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
 
   // ── Dépenses fixes stats ────────────────────────────────────────────────
   const today     = new Date();
@@ -1364,22 +1431,65 @@ function renderDashboard() {
     }).join('');
 
   c.innerHTML = `
-    <div class="page-title">🏠 Tableau de bord
-      <span class="live-badge" style="font-size:11px"><span class="live-dot"></span>En direct</span>
-    </div>
+    <!-- TABLEAU DE BORD PREMIUM -->
+    <div class="db-premium">
+      <div class="db-premium-header">
+        <div>
+          <div class="db-premium-title">🏠 TABLEAU DE BORD FINANCIER</div>
+          <div class="db-premium-sub">${dateStr} · ${timeStr} · <span class="live-dot" style="display:inline-block"></span> En direct</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="db-user-badge">
+            <div class="user-avatar" style="width:28px;height:28px;font-size:11px">${userName[0]?.toUpperCase()||'?'}</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#fff">${esc(userName)}</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.5)">${S.user?.role==='admin'?'Administrateur':'Utilisateur'}</div>
+            </div>
+          </div>
+          <span class="db-premium-version">v4.0</span>
+        </div>
+      </div>
 
-    <!-- Balance card -->
-    <div class="balance-card" style="margin-bottom:20px">
-      <div class="balance-title">Solde total — ${w.name}</div>
-      <div class="balance-amount" id="db-balance">${fmtAmount(w.balance, w.currency)}</div>
-      <div class="balance-sub">
-        <div class="balance-sub-item">⬆ Revenus <span>${fmtAmount(income, w.currency)}</span></div>
-        <div class="balance-sub-item">⬇ Dépenses <span>${fmtAmount(expense, w.currency)}</span></div>
-        <div class="balance-sub-item">📋 <span>${S.total} transactions</span></div>
+      <!-- Solde principal -->
+      <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,.1)">
+        <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${esc(w.name)} — Solde actuel</div>
+        <div style="font-size:34px;font-weight:800;color:${w.balance>=0?'#4fc3f7':'#ef4444'}">${fmtAmount(w.balance, w.currency)}</div>
+        <div style="display:flex;gap:20px;margin-top:10px;flex-wrap:wrap">
+          <span style="font-size:12px;color:rgba(255,255,255,.6)">⬆ <span style="color:#4caf50;font-weight:700">${fmtAmount(income, w.currency)}</span></span>
+          <span style="font-size:12px;color:rgba(255,255,255,.6)">⬇ <span style="color:#ef9a9a;font-weight:700">${fmtAmount(expense, w.currency)}</span></span>
+          <span style="font-size:12px;color:rgba(255,255,255,.6)">📋 <span style="color:#fff;font-weight:700">${S.total} transactions</span></span>
+        </div>
+      </div>
+
+      <!-- Grille boutons principaux style VBA -->
+      <div class="db-btn-grid">
+        <button class="db-btn" onclick="nav('transactions')"><span class="db-btn-icon">📋</span> Transactions</button>
+        <button class="db-btn" onclick="nav('stats')"><span class="db-btn-icon">📊</span> Graphiques premium</button>
+        <button class="db-btn" onclick="nav('fixed')"><span class="db-btn-icon">🔁</span> Dépenses fixes</button>
+        <button class="db-btn success" onclick="nav('income')"><span class="db-btn-icon">💰</span> Revenus fixes</button>
+        <button class="db-btn" onclick="nav('debts')"><span class="db-btn-icon">💸</span> Dettes / Remboursements</button>
+        <button class="db-btn" onclick="nav('budgets')"><span class="db-btn-icon">📅</span> Budgets mensuels</button>
+        <button class="db-btn primary" onclick="openAddTx()"><span class="db-btn-icon">＋</span> Ajouter une opération</button>
+        <button class="db-btn" onclick="openSearch()"><span class="db-btn-icon">🔍</span> Recherche globale</button>
+        <button class="db-btn" onclick="nav('wallets')"><span class="db-btn-icon">👛</span> Portefeuilles</button>
+        <button class="db-btn" onclick="nav('profile')"><span class="db-btn-icon">👤</span> Mon profil</button>
+        <button class="db-btn success" onclick="openTransfer()"><span class="db-btn-icon">↔</span> Virement entre comptes</button>
+        <button class="db-btn" onclick="exportCSV()"><span class="db-btn-icon">⬇</span> Export / Import</button>
+        <button class="db-btn" onclick="exportPDF()"><span class="db-btn-icon">📄</span> Rapport PDF</button>
+        ${S.user?.role==='admin'?`
+        <button class="db-btn primary" onclick="nav('admin')"><span class="db-btn-icon">⚙️</span> Gestion utilisateurs</button>
+        <button class="db-btn primary" onclick="nav('admin');setTimeout(()=>adminTab('update'),500)"><span class="db-btn-icon">🔄</span> Paramètres avancés</button>
+        `:''}
+      </div>
+
+      <div class="db-divider"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="db-btn danger" style="flex:1" onclick="logout()"><span class="db-btn-icon">⏻</span> Déconnexion</button>
+        <button class="db-btn" style="flex:2" onclick="openNotifs()"><span class="db-btn-icon">🔔</span> Notifications ${S.unread>0?'<span style="background:#ef4444;color:#fff;padding:1px 6px;border-radius:100px;font-size:10px">'+S.unread+'</span>':''}</button>
       </div>
     </div>
 
-    <!-- Stats row -->
+    <!-- Stats rapides -->
     <div class="card-grid" style="margin-bottom:20px">
       <div class="stat-card">
         <div class="stat-label">Revenus ce mois</div>
@@ -1392,18 +1502,14 @@ function renderDashboard() {
       <div class="stat-card" style="cursor:pointer" onclick="nav('fixed')">
         <div class="stat-label">Charges fixes / mois</div>
         <div class="stat-value expense">${fmtAmount(totalMonthlyFixed)}</div>
-        <div class="stat-sub">${activeFixed.length} dépense${activeFixed.length>1?'s':''} active${activeFixed.length>1?'s':''}</div>
+        <div class="stat-sub">${activeFixed.length} active${activeFixed.length>1?'s':''}</div>
       </div>
       <div class="stat-card" style="cursor:pointer;${totalToPay>0?'border-color:var(--expense)':''}" onclick="nav('fixed')">
         <div class="stat-label">À payer maintenant</div>
         <div class="stat-value" style="color:${totalToPay>0?'var(--expense)':'var(--income)'}">
           ${totalToPay>0?fmtAmount(totalToPay):'✅ À jour'}
         </div>
-        <div class="stat-sub">
-          ${overdueFixed.length>0?`<span style="color:var(--expense)">${overdueFixed.length} en retard</span>`:''}
-          ${soonFixed.length>0?` · ${soonFixed.length} dans 3 jours`:''}
-          ${totalToPay===0?'Aucune échéance imminente':''}
-        </div>
+        <div class="stat-sub">${overdueFixed.length>0?`<span style="color:var(--expense)">${overdueFixed.length} en retard</span>`:''}${soonFixed.length>0?` · ${soonFixed.length} dans 3j`:''}</div>
       </div>
     </div>
 
@@ -3817,6 +3923,128 @@ async function checkAllReminders() {
     // Attendre 3 secondes avant d'afficher la popup
     setTimeout(showCAFReminders, 3000);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VIREMENT ENTRE COMPTES
+// ═══════════════════════════════════════════════════════════════════════════
+function openTransfer() {
+  if (S.wallets.length < 2) {
+    toast('error', 'Il faut au moins 2 portefeuilles pour effectuer un virement');
+    return;
+  }
+  // Remplir les selects
+  const fromSel = document.getElementById('transfer-from');
+  const toSel   = document.getElementById('transfer-to');
+  const walletOptions = S.wallets.map(w =>
+    `<option value="${w.id}" data-balance="${w.balance}" data-currency="${w.currency}">
+      ${w.icon} ${w.name} (${fmtAmount(w.balance, w.currency)})
+    </option>`
+  ).join('');
+  fromSel.innerHTML = walletOptions;
+  toSel.innerHTML   = walletOptions;
+  // Sélectionner wallet courant comme source par défaut
+  if (S.currentWallet) fromSel.value = S.currentWallet.id;
+  // Sélectionner un autre wallet comme destination
+  const otherWallet = S.wallets.find(w => w.id !== parseInt(fromSel.value));
+  if (otherWallet) toSel.value = otherWallet.id;
+  // Réinitialiser les champs
+  document.getElementById('transfer-amount').value = '';
+  document.getElementById('transfer-label').value  = 'Virement';
+  document.getElementById('transfer-date').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('transfer-warning').style.display = 'none';
+  document.getElementById('btn-transfer').disabled = false;
+  updateTransferBalances();
+  openModal('modal-transfer');
+}
+
+function updateTransferBalances() {
+  const fromId = parseInt(document.getElementById('transfer-from').value);
+  const toId   = parseInt(document.getElementById('transfer-to').value);
+  const fromW  = S.wallets.find(w => w.id === fromId);
+  const toW    = S.wallets.find(w => w.id === toId);
+  const warn   = document.getElementById('transfer-warning');
+
+  if (fromW) {
+    document.getElementById('transfer-from-balance').textContent =
+      `Solde actuel : ${fmtAmount(fromW.balance, fromW.currency)}`;
+  }
+  if (toW) {
+    document.getElementById('transfer-to-balance').textContent =
+      `Solde actuel : ${fmtAmount(toW.balance, toW.currency)}`;
+  }
+  // Avertissement si même compte
+  if (fromId === toId) {
+    warn.textContent = '⚠️ Le compte source et le compte destination sont identiques !';
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+function onTransferFromChange() { updateTransferBalances(); }
+function onTransferToChange()   { updateTransferBalances(); }
+
+async function doTransfer() {
+  const fromId = parseInt(document.getElementById('transfer-from').value);
+  const toId   = parseInt(document.getElementById('transfer-to').value);
+  const amount = parseFloat(document.getElementById('transfer-amount').value);
+  const label  = document.getElementById('transfer-label').value.trim() || 'Virement';
+  const date   = document.getElementById('transfer-date').value;
+
+  if (fromId === toId) { toast('error', 'Source et destination identiques !'); return; }
+  if (!amount || amount <= 0) { toast('error', 'Montant invalide'); return; }
+
+  const fromW = S.wallets.find(w => w.id === fromId);
+  const toW   = S.wallets.find(w => w.id === toId);
+
+  // Avertissement solde insuffisant
+  if (fromW && fromW.balance < amount) {
+    const ok = confirm(`⚠️ Solde insuffisant sur « ${fromW.name} »\nSolde : ${fmtAmount(fromW.balance)}\nVirement : ${fmtAmount(amount)}\n\nEffectuer quand même ?`);
+    if (!ok) return;
+  }
+
+  const btn = document.getElementById('btn-transfer');
+  btn.disabled = true;
+  btn.textContent = 'Virement en cours...';
+
+  try {
+    // 1. Dépense sur le compte source
+    const r1 = await api('POST', `/api/wallets/${fromId}/transactions`, {
+      amount, type: 'expense',
+      label: `${label} → ${toW?.name||''}`,
+      note: `Virement vers ${toW?.name||''}`,
+      date, category_id: null
+    });
+
+    // 2. Revenu sur le compte destination
+    const r2 = await api('POST', `/api/wallets/${toId}/transactions`, {
+      amount, type: 'income',
+      label: `${label} ← ${fromW?.name||''}`,
+      note: `Virement depuis ${fromW?.name||''}`,
+      date, category_id: null
+    });
+
+    if (r1?.id && r2?.id) {
+      closeModal('modal-transfer');
+      // Mettre à jour les soldes
+      await loadWallets();
+      renderWalletBar();
+      if (S.currentWallet?.id === fromId || S.currentWallet?.id === toId) {
+        await loadTransactions(true);
+      }
+      refreshCurrentPage();
+      toast('success',
+        `↔ Virement de ${fmtAmount(amount)} effectué ✓\n${fromW?.name} → ${toW?.name}`
+      );
+    } else {
+      toast('error', 'Erreur lors du virement — vérifiez les deux comptes');
+    }
+  } catch(e) {
+    toast('error', 'Erreur : ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '↔ Effectuer le virement';
 }
 
 </script>

@@ -1,5 +1,5 @@
 // sw.js — Service Worker FinanceApp
-const CACHE = 'financeapp-v8';
+const CACHE = 'financeapp-v10';
 const OFFLINE_URLS = ['/', '/static/index.html'];
 
 self.addEventListener('install', e => {
